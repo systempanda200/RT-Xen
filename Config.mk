@@ -233,11 +233,11 @@ OVMF_UPSTREAM_URL ?= git://xenbits.xen.org/ovmf.git
 QEMU_UPSTREAM_URL ?= git://xenbits.xen.org/qemu-upstream-4.3-testing.git
 SEABIOS_UPSTREAM_URL ?= git://xenbits.xen.org/seabios.git
 endif
-OVMF_UPSTREAM_REVISION ?= 447d264115c476142f884af0be287622cd244423
-QEMU_UPSTREAM_REVISION ?= master
-SEABIOS_UPSTREAM_TAG ?= rel-1.7.3.1
-# Fri Aug 2 14:12:09 2013 -0400
-# Fix bug in CBFS file walking with compressed files.
+OVMF_UPSTREAM_REVISION ?= b0855f925c6e2e0b21fbb03fab4b5fb5b6876871
+QEMU_UPSTREAM_REVISION ?= qemu-xen-4.3.0
+SEABIOS_UPSTREAM_TAG ?= 3a28511b46f0c2af5fae1b6ed2b0c19d7913cee3
+# Wed Jun 26 16:30:45 2013 +0100
+# xen: Don't perform SMP setup.
 
 ETHERBOOT_NICS ?= rtl8139 8086100e
 
@@ -246,9 +246,9 @@ ETHERBOOT_NICS ?= rtl8139 8086100e
 # CONFIG_QEMU ?= `pwd`/$(XEN_ROOT)/../qemu-xen.git
 CONFIG_QEMU ?= $(QEMU_REMOTE)
 
-QEMU_TAG ?= 7f5b3c338e0f8938ba575dec18255dcbee0c2ee2
-# Wed Dec 18 15:25:14 2013 +0000
-# qemu-traditional: Fix build warnings on Wheezy
+QEMU_TAG ?= xen-4.3.0
+# Mon Jun 17 17:39:51 2013 +0100
+# qemu-xen-traditional: disable docs
 
 # Short answer -- do not enable this unless you know what you are
 # doing and are prepared for some pain.

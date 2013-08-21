@@ -1,10 +1,3 @@
-/******************************************************************************
- * Preemptive Global EDF/RM scheduler for xen
- *
- * by Sisu Xi, 2013, Washington University in Saint Louis
- * based on code of George Dunlap's credit2 Scheduler
- */
-
 #include <xen/config.h>
 #include <xen/init.h>
 #include <xen/lib.h>

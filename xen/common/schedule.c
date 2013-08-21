@@ -68,6 +68,8 @@ static const struct scheduler *schedulers[] = {
     &sched_sedf_def,
     &sched_credit_def,
     &sched_credit2_def,
+	&sched_rtglobal_def,
+	&sched_rtpartition_def,
     &sched_arinc653_def,
 };
 

@@ -171,7 +171,8 @@ extern const struct scheduler sched_sedf_def;
 extern const struct scheduler sched_credit_def;
 extern const struct scheduler sched_credit2_def;
 extern const struct scheduler sched_arinc653_def;
-
+extern const struct scheduler sched_rtglobal_def;
+extern const struct scheduler sched_rtpartition_def;
 
 struct cpupool
 {

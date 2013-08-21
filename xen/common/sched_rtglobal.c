@@ -1,3 +1,10 @@
+/******************************************************************************
+ * Preemptive Global EDF/RM scheduler for xen
+ *
+ * by Sisu Xi, 2013, Washington University in Saint Louis
+ * based on code of credite Scheduler
+ */
+
 #include <xen/config.h>
 #include <xen/init.h>
 #include <xen/lib.h>
@@ -35,7 +42,7 @@
  * Priority scheme: a global variable called priority_scheme is used to switch between EDF and RM
  * Queue scheme: a global runqueue is used here. It holds all runnable VCPUs. VCPUs are divided into two parts: with and without remaining budget. Among each part, VCPUs are sorted by their current deadlines.
  * Scheduling quanta: 1 ms is picked as the scheduling quanta, but the accounting is done in microsecond level.
- * Extra: cpumask is also supported, as a result, although the runq is sorted, the scheduler also need to verify whether the cpumask is allowed or not.
+ * Other: cpumask is also supported, as a result, although the runq is sorted, the scheduler also need to verify whether the cpumask is allowed or not.
  */
 
 /*
@@ -106,7 +113,8 @@ struct rtglobal_private {
     struct list_head runq;  /* Ordered list of runnable VMs */
     cpumask_t cpus;         /* cpumask_t of available physical cpus */
     cpumask_t tickled;      /* another cpu in the queue already ticked this one */
-priority_scheme};
+    unsigned priority_scheme;
+};
 
 /*
  * Virtual CPU
@@ -137,7 +145,7 @@ struct rtglobal_dom {
     struct list_head vcpu;      /* link its VCPUs */
     struct list_head sdom_elem; /* link list on rtglobal_priv */
     struct domain *dom;         /* pointer to upper domain */
-    int    extra;               /* not implemented */
+    int    extra;               /* not evaluated */
 };
 
 /*
@@ -170,7 +178,7 @@ __runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
     struct list_head *runq = RUNQ(ops);
     struct list_head *iter;
 	struct rtglobal_private *prv = RTGLOBAL_PRIV(ops);
-    ASSERT( spin_is_locked(per_cpu(schedule_data, svc->vcpu_processor).schedule_lock) );
+    ASSERT( spin_is_locked(per_cpu(schedule_data, svc->vcpu->processor).schedule_lock) );
 
     if ( __vcpu_on_runq(svc) )
         return;
@@ -180,14 +188,14 @@ __runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
 
 		if ( svc->cur_budget > 0 ) { // svc still has budget
 			if ( iter_svc->cur_budget == 0 ||
-			     ( prv->priority_scheme == EDF && svc->cur_deadline < iter->cur_deadline ) ||
-			     ( prv->priority_scheme == RM && svc->period < iter->period )) {
+			     ( ( prv->priority_scheme == EDF && svc->cur_deadline < iter_svc->cur_deadline ) ||
+			       ( prv->priority_scheme == RM && svc->period < iter_svc->period )) ) {
 					break;
 			}
 		} else { // svc has no budget
 			if ( iter_svc->cur_budget == 0 &&
-			     ( prv->priority_scheme == EDF && svc->cur_deadline < iter->cur_deadline ) ||
-			     ( prv->priority_scheme == RM && svc->period < iter->period )) {
+			     ( ( prv->priority_scheme == EDF && svc->cur_deadline < iter_svc->cur_deadline ) ||
+			       ( prv->priority_scheme == RM && svc->period < iter_svc->period )) ) {
 					break;
 			}
 		}
@@ -244,10 +252,11 @@ rtglobal_dump(const struct scheduler *ops)
     int loop = 0;
 
     printtime();
-	prv->priority_scheme == EDF ? printk("EDF\n") : printk("RM\n");
+    if ( prv->priority_scheme == EDF ) printk("EDF\n");
+    else printk ("RM\n");
 
     printk("PCPU info: \n");
-    for_each_cpu_mask(cpu, prv->cpus) {
+    for_each_cpu(cpu, &prv->cpus) {
         rtglobal_dump_pcpu(ops, cpu);
     }
 
@@ -294,8 +303,8 @@ rtglobal_init(struct scheduler *ops)
     spin_lock_init(&prv->lock);
     INIT_LIST_HEAD(&prv->sdom);
     INIT_LIST_HEAD(&prv->runq);
-    cpus_clear(prv->tickled);
-    cpus_clear(prv->cpus);
+    cpumask_clear(&prv->tickled);
+    cpumask_clear(&prv->cpus);
     prv->priority_scheme = EDF;     /* by default, use EDF scheduler */
 
     printk("This is the Deferrable Server version of the preemptive RTGLOBAL scheduler\n");
@@ -326,15 +335,12 @@ rtglobal_alloc_pdata(const struct scheduler *ops, int cpu)
 {
     struct rtglobal_private *prv = RTGLOBAL_PRIV(ops);
 
-    cpu_set(cpu, prv->cpus);
+    cpumask_set_cpu(cpu, &prv->cpus);
 
     per_cpu(schedule_data, cpu).schedule_lock = &prv->lock;
 
     printtime();
-#define cpustr keyhandler_scratch
-    cpumask_scnprintf(cpustr, sizeof(cpustr), prv->cpus);
-    printk("cpu=%d system_cpus=%s\n", cpu, cpustr);
-#undef cpustr
+    printk("total cpus: %d", cpumask_weight(&prv->cpus));
     return (void *)1;
 }
 
@@ -342,7 +348,7 @@ static void
 rtglobal_free_pdata(const struct scheduler *ops, void *pcpu, int cpu)
 {
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
-    cpu_clear(cpu, prv->cpus);
+    cpumask_clear_cpu(cpu, &prv->cpus);
     printtime();
     printk("cpu=%d\n", cpu);
 }
@@ -445,8 +451,8 @@ rtglobal_alloc_vdata(const struct scheduler *ops, struct vcpu *vc, void *dd)
     svc->vcpu = vc;
     svc->last_start = 0;            /* init last_start is 0 */
 
-	svc->priod = RTGLOBAL_DEFAULT_PERIOD;
-	if ( !is_idle_VCPU(vc) && vc->domain->domain_id != 0 ) {
+	svc->period = RTGLOBAL_DEFAULT_PERIOD;
+	if ( !is_idle_vcpu(vc) && vc->domain->domain_id != 0 ) {
 		svc->budget = RTGLOBAL_DEFAULT_BUDGET;
 	} else {
 		svc->budget = RTGLOBAL_DEFAULT_PERIOD;
@@ -564,10 +570,15 @@ rtglobal_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
 {
     cpumask_t cpus;
     int cpu;
+    struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
 
-    cpus_and(cpus, RTGLOBAL_PRIV(ops)->cpus, vc->cpu_affinity);
-    cpu = cpu_isset(vc->processor, cpus)? vc->processor : cycle_cpu(vc->processor, cpus);
-    ASSERT( !cpus_empty(cpus) && cpu_isset(cpu, cpus) );
+    cpumask_copy(&cpus, vc->cpu_affinity);
+    cpumask_and(&cpus, &prv->cpus, &cpus);
+
+    cpu = cpumask_test_cpu(vc->processor, &cpus)
+            ? vc->processor 
+            : cpumask_cycle(vc->processor, &cpus);
+    ASSERT( !cpumask_empty(&cpus) && cpumask_test_cpu(cpu, &cpus) );
 
 // #ifdef RTXEN_DEBUG
 //     if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_PICK] < RTXEN_MAX ) {
@@ -580,7 +591,7 @@ rtglobal_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
     return cpu;
 }
 
-/* TODO: right now implemented as deferrable server. */
+/* Implemented as deferrable server. */
 /* burn budget at microsecond level */
 static void
 burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t now) {
@@ -639,11 +650,11 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
     cpumask_t cpu_common;
 
     list_for_each(iter, runq) {
-        iter_svc = __runq_elem(iter);
+        iter_svc = __runq_elem(iter);   
 
-        cpus_clear(cpu_common);
-        cpus_and(cpu_common, mask, iter_svc->vcpu->cpu_affinity);
-        if ( cpus_empty(cpu_common) )
+        cpumask_copy(&cpu_common, iter_svc->vcpu->cpu_affinity);
+        cpumask_and(&cpu_common, &mask, &cpu_common);
+        if ( cpumask_empty(&cpu_common) )
             continue;
 
         if ( iter_svc->cur_budget <= 0 && iter_svc->sdom->extra == 0 )
@@ -693,8 +704,8 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
     struct task_slice ret;
 
     /* clear ticked bit now that we've been scheduled */
-    if ( cpu_isset(cpu, prv->tickled) )
-        cpu_clear(cpu, prv->tickled);
+    if ( cpumask_test_cpu(cpu, &prv->tickled) )
+        cpumask_clear_cpu(cpu, &prv->tickled);
 
     /* burn_budget would return for IDLE VCPU */
     burn_budgets(ops, scurr, now);
@@ -715,8 +726,8 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
         snext = RTGLOBAL_VCPU(idle_vcpu[cpu]);
     } else {
         cpumask_t cur_cpu;
-        cpus_clear(cur_cpu);
-        cpu_set(cpu, cur_cpu);
+        cpumask_clear(&cur_cpu);
+        cpumask_set_cpu(cpu, &cur_cpu);
         snext = __runq_pick(ops, cur_cpu);
         if ( snext == NULL )
             snext = RTGLOBAL_VCPU(idle_vcpu[cpu]);
@@ -733,15 +744,15 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
     }
 
     /* Trace switch self problem */
-    if ( snext != scurr &&
-         !is_idle_vcpu(snext->vcpu) &&
-         !is_idle_vcpu(scurr->vcpu) &&
-         snext->vcpu->domain->domain_id == scurr->vcpu->domain->domain_id &&
-         scurr->cur_budget > 0 &&
-         vcpu_runnable(current) &&
-         snext->cur_deadline < scurr->cur_deadline ) {
-        TRACE_3D(TRC_SCHED_RTGLOBAL_SWITCHSELF, scurr->vcpu->domain->domain_id, scurr->vcpu->vcpu_id, snext->vcpu->vcpu_id);
-    }
+    // if ( snext != scurr &&
+    //      !is_idle_vcpu(snext->vcpu) &&
+    //      !is_idle_vcpu(scurr->vcpu) &&
+    //      snext->vcpu->domain->domain_id == scurr->vcpu->domain->domain_id &&
+    //      scurr->cur_budget > 0 &&
+    //      vcpu_runnable(current) &&
+    //      snext->cur_deadline < scurr->cur_deadline ) {
+    //     TRACE_3D(TRC_SCHED_RTGLOBAL_SWITCHSELF, scurr->vcpu->domain->domain_id, scurr->vcpu->vcpu_id, snext->vcpu->vcpu_id);
+    // }
 
     if ( snext != scurr &&
          !is_idle_vcpu(current) &&
@@ -837,22 +848,22 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
 
     if ( new == NULL || is_idle_vcpu(new->vcpu) ) return;
 
-    cpus_clear(not_tickled);
-    cpus_andnot(not_tickled, new->vcpu->cpu_affinity, prv->tickled);
+    cpumask_copy(&not_tickled, new->vcpu->cpu_affinity);
+    cpumask_andnot(&not_tickled, &not_tickled, &prv->tickled);
 
-    /* 1) if new cpu is idle, kick it for cache */
+    /* 1) if new's previous cpu is idle, kick it for cache benefit */
     if ( is_idle_vcpu(CUR_VCPU(new->vcpu->processor)) ) {
-        cpu_set(new->vcpu->processor, prv->tickled);
+        cpumask_set_cpu(new->vcpu->processor, &prv->tickled);
         cpu_raise_softirq(new->vcpu->processor, SCHEDULE_SOFTIRQ);
         return;
     }
 
     /* 2) if there are any idle pcpu, kick it */
     /* the same loop also found the one with lowest priority */
-    for_each_cpu_mask(cpu, not_tickled) {
+    for_each_cpu(cpu, &not_tickled) {
         iter_vc = CUR_VCPU(cpu);
         if ( is_idle_vcpu(iter_vc) ) {
-            cpu_set(cpu, prv->tickled);
+            cpumask_set_cpu(cpu, &prv->tickled);
             cpu_raise_softirq(cpu, SCHEDULE_SOFTIRQ);
             return;
         }
@@ -864,7 +875,7 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
 
     /* 3) new has higher priority, kick it */
     if ( scheduled != NULL && new->cur_deadline < scheduled->cur_deadline ) {
-        cpu_set(scheduled->vcpu->processor, prv->tickled);
+        cpumask_set_cpu(scheduled->vcpu->processor, &prv->tickled);
         cpu_raise_softirq(scheduled->vcpu->processor, SCHEDULE_SOFTIRQ);
     }
     return;
@@ -968,7 +979,7 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
 // }
 
 // /*
-//  * Not implemented now.
+//  * Not implemented for now.
 //  */
 // static void
 // rtglobal_vcpu_yield(const struct scheduler *ops, struct vcpu *vc)

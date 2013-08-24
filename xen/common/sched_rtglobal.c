@@ -70,7 +70,6 @@
 #define RTGLOBAL_PRIV(_ops)     ((struct rtglobal_private *)((_ops)->sched_data))
 #define RTGLOBAL_VCPU(_vcpu)    ((struct rtglobal_vcpu *)(_vcpu)->sched_priv)
 #define RTGLOBAL_DOM(_dom)      ((struct rtglobal_dom *)(_dom)->sched_priv)
-#define CUR_VCPU(_cpu)      	(per_cpu(schedule_data, _cpu).curr)
 #define RUNQ(_ops)          	(&RTGLOBAL_PRIV(_ops)->runq)
 
 /*
@@ -127,7 +126,7 @@ struct rtglobal_vcpu {
     struct rtglobal_dom *sdom;
     struct vcpu *vcpu;
 
-    /* RTGLOBAL parameters, in milliseconds */
+    /* VCPU parameters, in milliseconds */
     int period;
     int budget;
 
@@ -235,7 +234,7 @@ rtglobal_dump_vcpu(struct rtglobal_vcpu *svc)
 static void
 rtglobal_dump_pcpu(const struct scheduler *ops, int cpu)
 {
-    struct rtglobal_vcpu *svc = RTGLOBAL_VCPU(CUR_VCPU(cpu));
+    struct rtglobal_vcpu *svc = RTGLOBAL_VCPU(curr_on_cpu(cpu));
 
     printtime();
     rtglobal_dump_vcpu(svc);
@@ -812,7 +811,7 @@ rtglobal_vcpu_sleep(const struct scheduler *ops, struct vcpu *vc)
 
     BUG_ON( is_idle_vcpu(vc) );
 
-    if ( CUR_VCPU(vc->processor) == vc ) {
+    if ( curr_on_cpu(vc->processor) == vc ) {
         cpu_raise_softirq(vc->processor, SCHEDULE_SOFTIRQ);
         return;
     }
@@ -852,7 +851,7 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
     cpumask_andnot(&not_tickled, &not_tickled, &prv->tickled);
 
     /* 1) if new's previous cpu is idle, kick it for cache benefit */
-    if ( is_idle_vcpu(CUR_VCPU(new->vcpu->processor)) ) {
+    if ( is_idle_vcpu(curr_on_cpu(new->vcpu->processor)) ) {
         cpumask_set_cpu(new->vcpu->processor, &prv->tickled);
         cpu_raise_softirq(new->vcpu->processor, SCHEDULE_SOFTIRQ);
         return;
@@ -861,7 +860,7 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
     /* 2) if there are any idle pcpu, kick it */
     /* the same loop also found the one with lowest priority */
     for_each_cpu(cpu, &not_tickled) {
-        iter_vc = CUR_VCPU(cpu);
+        iter_vc = curr_on_cpu(cpu);
         if ( is_idle_vcpu(iter_vc) ) {
             cpumask_set_cpu(cpu, &prv->tickled);
             cpu_raise_softirq(cpu, SCHEDULE_SOFTIRQ);
@@ -904,7 +903,7 @@ rtglobal_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
 
     BUG_ON( is_idle_vcpu(vc) );
 
-    if ( unlikely(CUR_VCPU(vc->processor) == vc) ) return;
+    if ( unlikely(curr_on_cpu(vc->processor) == vc) ) return;
 
     /* on RunQ, just update info is ok */
     if ( unlikely(__vcpu_on_runq(svc)) ) return;

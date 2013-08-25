@@ -5173,6 +5173,62 @@ static int sched_credit2_domain_output(
     return 0;
 }
 
+// rtglobal
+static int sched_rtglobal_domain_output(
+    int domid)
+{
+    char *domname;
+    libxl_domain_sched_params scinfo;
+    int rc;
+
+    if (domid < 0) {
+        printf("%-33s %4s %6s %6s %4s %5s\n", "Name", "ID", "Period", "Budget", "Vcpu", "Extra");
+        return 0;
+    }
+    rc = sched_domain_get(LIBXL_SCHEDULER_RTGLOBAL, domid, &scinfo);
+    if (rc)
+        return rc;
+    domname = libxl_domid_to_name(ctx, domid);
+    printf("%-33s %4d %6d %6d %4d %5d\n",
+        domname,
+        domid,
+        scinfo.period,
+        scinfo.budget,
+        scinfo.vcpu,
+        scinfo.extra);
+    free(domname);
+    libxl_domain_sched_params_dispose(&scinfo);
+    return 0;
+}
+
+// rtpartition
+static int sched_rtpartition_domain_output(
+    int domid)
+{
+    char *domname;
+    libxl_domain_sched_params scinfo;
+    int rc;
+
+    if (domid < 0) {
+        printf("%-33s %4s %6s %6s %4s %5s\n", "Name", "ID", "Period", "Budget", "Vcpu", "Extra");
+        return 0;
+    }
+    rc = sched_domain_get(LIBXL_SCHEDULER_RTPARTITION, domid, &scinfo);
+    if (rc)
+        return rc;
+    domname = libxl_domid_to_name(ctx, domid);
+    printf("%-33s %4d %6d %6d %4d %5d\n",
+        domname,
+        domid,
+        scinfo.period,
+        scinfo.budget,
+        scinfo.vcpu,
+        scinfo.extra);
+    free(domname);
+    libxl_domain_sched_params_dispose(&scinfo);
+    return 0;
+}
+
 static int sched_sedf_domain_output(
     int domid)
 {
@@ -5450,6 +5506,185 @@ int main_sched_credit2(int argc, char **argv)
             scinfo.sched = LIBXL_SCHEDULER_CREDIT2;
             if (opt_w)
                 scinfo.weight = weight;
+            rc = sched_domain_set(domid, &scinfo);
+            libxl_domain_sched_params_dispose(&scinfo);
+            if (rc)
+                return -rc;
+        }
+    }
+
+    return 0;
+}
+
+// rtglobal
+int main_sched_rtglobal(int argc, char **argv)
+{
+    const char *dom = NULL;
+    const char *cpupool = NULL;
+    int period = 10, opt_p = 0;
+    int budget = 4, opt_b = 0;
+    int vcpu = 0, opt_v = 0;
+    int extra = 0, opt_e = 0;
+    int opt, rc;
+    static struct option opts[] = {
+        {"domain", 1, 0, 'd'},
+        {"period", 1, 0, 'p'},
+        {"budget", 1, 0, 'b'},
+        {"vcpu", 1, 0, 'v'},
+        {"extra", 1, 0, 'e'},
+        {"cpupool", 1, 0, 'c'},
+        COMMON_LONG_OPTS,
+        {0, 0, 0, 0}
+    };
+
+    SWITCH_FOREACH_OPT(opt, "d:p:b:v:e:c", opts, "sched-rtglobal", 0) {
+    case 'd':
+        dom = optarg;
+        break;
+    case 'p':
+        period = strtol(optarg, NULL, 10);
+        opt_p = 1;
+        break;
+    case 'b':
+        budget = strtol(optarg, NULL, 4);
+        opt_b = 1;
+        break;
+    case 'v':
+        vcpu = strtol(optarg, NULL, 0);
+        opt_v = 1;
+        break;
+    case 'e':
+        extra = strtol(optarg, NULL, 0);
+        opt_e = 1;
+        break;
+    case 'c':
+        cpupool = optarg;
+        break;
+    }
+
+    if (cpupool && (dom || opt_p || opt_b || opt_v || opt_e)) {
+        fprintf(stderr, "Specifying a cpupool is not allowed with other "
+                "options.\n");
+        return 1;
+    }
+    if (!dom && (opt_p || opt_b || opt_v || opt_e)) {
+        fprintf(stderr, "Must specify a domain.\n");
+        return 1;
+    }
+
+    if (!dom) { /* list all domain's credit scheduler info */
+        return -sched_domain_output(LIBXL_SCHEDULER_RTGLOBAL,
+                                    sched_rtglobal_domain_output,
+                                    sched_default_pool_output,
+                                    cpupool);
+    } else {
+        uint32_t domid = find_domain(dom);
+
+        if (!opt_p && !opt_b && !opt_v && !opt_e) { /* output rtglobal scheduler info */
+            sched_rtglobal_domain_output(-1);
+            return -sched_rtglobal_domain_output(domid);
+        } else { /* set rtglobal scheduler paramaters */
+            libxl_domain_sched_params scinfo;
+            libxl_domain_sched_params_init(&scinfo);
+            scinfo.sched = LIBXL_SCHEDULER_RTGLOBAL;
+            if (opt_p)
+                scinfo.period = period;
+            if (opt_b)
+                scinfo.budget = budget;
+            if (opt_v)
+                scinfo.vcpu = vcpu;
+            if (opt_e)
+                scinfo.extra = extra;
+            rc = sched_domain_set(domid, &scinfo);
+            libxl_domain_sched_params_dispose(&scinfo);
+            if (rc)
+                return -rc;
+        }
+    }
+
+    return 0;
+}
+
+
+// rtpartition
+int main_sched_rtpartition(int argc, char **argv)
+{
+    const char *dom = NULL;
+    const char *cpupool = NULL;
+    int period = 10, opt_p = 0;
+    int budget = 4, opt_b = 0;
+    int vcpu = 0, opt_v = 0;
+    int extra = 0, opt_e = 0;
+    int opt, rc;
+    static struct option opts[] = {
+        {"domain", 1, 0, 'd'},
+        {"period", 1, 0, 'p'},
+        {"budget", 1, 0, 'b'},
+        {"vcpu", 1, 0, 'v'},
+        {"extra", 1, 0, 'e'},
+        {"cpupool", 1, 0, 'c'},
+        COMMON_LONG_OPTS,
+        {0, 0, 0, 0}
+    };
+
+    SWITCH_FOREACH_OPT(opt, "d:p:b:v:e:c", opts, "sched-rtpartition", 0) {
+    case 'd':
+        dom = optarg;
+        break;
+    case 'p':
+        period = strtol(optarg, NULL, 10);
+        opt_p = 1;
+        break;
+    case 'b':
+        budget = strtol(optarg, NULL, 4);
+        opt_b = 1;
+        break;
+    case 'v':
+        vcpu = strtol(optarg, NULL, 0);
+        opt_v = 1;
+        break;
+    case 'e':
+        extra = strtol(optarg, NULL, 0);
+        opt_e = 1;
+        break;
+    case 'c':
+        cpupool = optarg;
+        break;
+    }
+
+    if (cpupool && (dom || opt_p || opt_b || opt_v || opt_e)) {
+        fprintf(stderr, "Specifying a cpupool is not allowed with other "
+                "options.\n");
+        return 1;
+    }
+    if (!dom && (opt_p || opt_b || opt_v || opt_e)) {
+        fprintf(stderr, "Must specify a domain.\n");
+        return 1;
+    }
+
+    if (!dom) { /* list all domain's credit scheduler info */
+        return -sched_domain_output(LIBXL_SCHEDULER_RTPARTITION,
+                                    sched_rtpartition_domain_output,
+                                    sched_default_pool_output,
+                                    cpupool);
+    } else {
+        uint32_t domid = find_domain(dom);
+
+        if (!opt_p && !opt_b && !opt_v && !opt_e) { /* output rtpartition scheduler info */
+            sched_rtpartition_domain_output(-1);
+            return -sched_rtpartition_domain_output(domid);
+        } else { /* set rtpartition scheduler paramaters */
+            libxl_domain_sched_params scinfo;
+            libxl_domain_sched_params_init(&scinfo);
+            scinfo.sched = LIBXL_SCHEDULER_RTPARTITION;
+            if (opt_p)
+                scinfo.period = period;
+            if (opt_b)
+                scinfo.budget = budget;
+            if (opt_v)
+                scinfo.vcpu = vcpu;
+            if (opt_e)
+                scinfo.extra = extra;
             rc = sched_domain_set(domid, &scinfo);
             libxl_domain_sched_params_dispose(&scinfo);
             if (rc)

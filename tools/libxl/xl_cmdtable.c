@@ -261,6 +261,16 @@ struct cmd_spec cmd_table[] = {
       "-w WEIGHT, --weight=WEIGHT     Weight (int)\n"
       "-p CPUPOOL, --cpupool=CPUPOOL  Restrict output to CPUPOOL"
     },
+    { "sched-rtglobal",
+      &main_sched_rtglobal, 0, 1,
+      "Get/set rtglobal scheduler parameters",
+      "[-d <Domain> [-w[=WEIGHT]]] [-p CPUPOOL]",
+      "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
+      "-p PERIOD, --period=PERIOD     Period (int)\n"
+      "-b BUDGET, --budget=BUDGET     Budget (int)\n"
+      "-v VCPU,   --vcpu=VCPU         Vcpu (int)\n"
+      "-e EXTRA,  --extra=EXTRA       Extra (int)\n"
+    },
     { "sched-sedf",
       &main_sched_sedf, 0, 1,
       "Get/set sedf scheduler parameters",

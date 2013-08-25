@@ -138,6 +138,8 @@ libxl_scheduler = Enumeration("scheduler", [
     (5, "credit"),
     (6, "credit2"),
     (7, "arinc653"),
+    (8, "rtglobal"),
+    (9, "rtpartition"),
     ])
 
 # Consistent with SHUTDOWN_* in sched.h (apart from UNKNOWN)
@@ -291,6 +293,10 @@ libxl_domain_sched_params = Struct("domain_sched_params",[
     ("weight",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_WEIGHT_DEFAULT'}),
     ("cap",          integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_CAP_DEFAULT'}),
     ("period",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
+    ("budget",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("vcpu",         integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT'}),
+    ("extra",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT'}),
+    
     ("slice",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_SLICE_DEFAULT'}),
     ("latency",      integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT'}),
     ("extratime",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT'}),

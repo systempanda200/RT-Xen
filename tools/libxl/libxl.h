@@ -1108,6 +1108,10 @@ int libxl_sched_credit_params_set(libxl_ctx *ctx, uint32_t poolid,
 #define LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT   -1
 #define LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT -1
 
+#define LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT    -1
+#define LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT      -1
+#define LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT     -1
+
 int libxl_domain_sched_params_get(libxl_ctx *ctx, uint32_t domid,
                                   libxl_domain_sched_params *params);
 int libxl_domain_sched_params_set(libxl_ctx *ctx, uint32_t domid,

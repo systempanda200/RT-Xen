@@ -4931,6 +4931,167 @@ static int sched_credit2_domain_set(libxl__gc *gc, uint32_t domid,
     return 0;
 }
 
+// rtglobal
+static int sched_rtglobal_domain_get(libxl__gc *gc, uint32_t domid,
+                                    libxl_domain_sched_params *scinfo)
+{
+    struct xen_domctl_sched_rtglobal sdom;
+    int rc;
+
+    rc = xc_sched_rtglobal_domain_get(CTX->xch, domid, &sdom);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rtglobal");
+        return ERROR_FAIL;
+    }
+
+    libxl_domain_sched_params_init(scinfo);
+    scinfo->sched = LIBXL_SCHEDULER_RTGLOBAL;
+    scinfo->period = sdom.period;
+    scinfo->budget = sdom.budget;
+    scinfo->vcpu = sdom.vcpu;
+    scinfo->extra = sdom.extra;
+
+    return 0;
+}
+
+static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
+                                    const libxl_domain_sched_params *scinfo)
+{
+    struct xen_domctl_sched_rtglobal sdom;
+    int rc;
+
+    rc = xc_sched_rtglobal_domain_get(CTX->xch, domid, &sdom);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rtglobal");
+        return ERROR_FAIL;
+    }
+
+    if (scinfo->period != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
+        if (scinfo->period < 1 || scinfo->period > 65535) {
+            LOG(ERROR, "Cpu period out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.period = scinfo->period;
+    }
+
+    if (scinfo->budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
+        if (scinfo->budget < 1 || scinfo->budget > 65535) {
+            LOG(ERROR, "Cpu budget out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.budget = scinfo->budget;
+    }
+
+    if (scinfo->vcpu != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
+        if (scinfo->vcpu < 1 || scinfo->vcpu > 65535) {
+            LOG(ERROR, "Cpu vcpu out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.vcpu = scinfo->vcpu;
+    }
+
+    if (scinfo->extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
+        if (scinfo->extra < 1 || scinfo->extra > 65535) {
+            LOG(ERROR, "Cpu extra out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.extra = scinfo->extra;
+    }
+
+    rc = xc_sched_rtglobal_domain_set(CTX->xch, domid, &sdom);
+    if ( rc < 0 ) {
+        LOGE(ERROR, "setting domain sched rtglobal");
+        return ERROR_FAIL;
+    }
+
+    return 0;
+}
+
+
+// rtpartition
+static int sched_rtpartition_domain_get(libxl__gc *gc, uint32_t domid,
+                                    libxl_domain_sched_params *scinfo)
+{
+    struct xen_domctl_sched_rtpartition sdom;
+    int rc;
+
+    rc = xc_sched_rtpartition_domain_get(CTX->xch, domid, &sdom);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rtpartition");
+        return ERROR_FAIL;
+    }
+
+    libxl_domain_sched_params_init(scinfo);
+    scinfo->sched = LIBXL_SCHEDULER_RTPARTITION;
+    scinfo->period = sdom.period;
+    scinfo->budget = sdom.budget;
+    scinfo->vcpu = sdom.vcpu;
+    scinfo->extra = sdom.extra;
+
+    return 0;
+}
+
+static int sched_rtpartition_domain_set(libxl__gc *gc, uint32_t domid,
+                                    const libxl_domain_sched_params *scinfo)
+{
+    struct xen_domctl_sched_rtpartition sdom;
+    int rc;
+
+    rc = xc_sched_rtpartition_domain_get(CTX->xch, domid, &sdom);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rtpartition");
+        return ERROR_FAIL;
+    }
+
+    if (scinfo->period != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
+        if (scinfo->period < 1 || scinfo->period > 65535) {
+            LOG(ERROR, "Cpu period out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.period = scinfo->period;
+    }
+
+    if (scinfo->budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
+        if (scinfo->budget < 1 || scinfo->budget > 65535) {
+            LOG(ERROR, "Cpu budget out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.budget = scinfo->budget;
+    }
+
+    if (scinfo->vcpu != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
+        if (scinfo->vcpu < 1 || scinfo->vcpu > 65535) {
+            LOG(ERROR, "Cpu vcpu out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.vcpu = scinfo->vcpu;
+    }
+
+    if (scinfo->extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
+        if (scinfo->extra < 1 || scinfo->extra > 65535) {
+            LOG(ERROR, "Cpu extra out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
+        }
+        sdom.extra = scinfo->extra;
+    }
+
+    rc = xc_sched_rtpartition_domain_set(CTX->xch, domid, &sdom);
+    if ( rc < 0 ) {
+        LOGE(ERROR, "setting domain sched rtpartition");
+        return ERROR_FAIL;
+    }
+
+    return 0;
+}
+
 static int sched_sedf_domain_get(libxl__gc *gc, uint32_t domid,
                                  libxl_domain_sched_params *scinfo)
 {
@@ -5018,6 +5179,12 @@ int libxl_domain_sched_params_set(libxl_ctx *ctx, uint32_t domid,
     case LIBXL_SCHEDULER_CREDIT2:
         ret=sched_credit2_domain_set(gc, domid, scinfo);
         break;
+    case LIBXL_SCHEDULER_RTGLOBAL:
+        ret=sched_rtglobal_domain_set(gc, domid, scinfo);
+        break;
+    case LIBXL_SCHEDULER_RTPARTITION:
+        ret=sched_rtpartition_domain_set(gc, domid, scinfo);
+        break;     
     case LIBXL_SCHEDULER_ARINC653:
         ret=sched_arinc653_domain_set(gc, domid, scinfo);
         break;
@@ -5051,6 +5218,12 @@ int libxl_domain_sched_params_get(libxl_ctx *ctx, uint32_t domid,
     case LIBXL_SCHEDULER_CREDIT2:
         ret=sched_credit2_domain_get(gc, domid, scinfo);
         break;
+    case LIBXL_SCHEDULER_RTGLOBAL:
+        ret=sched_rtglobal_domain_get(gc, domid, scinfo);
+        break;
+    case LIBXL_SCHEDULER_RTPARTITION:
+        ret=sched_rtpartition_domain_get(gc, domid, scinfo);
+        break;  
     default:
         LOG(ERROR, "Unknown scheduler");
         ret=ERROR_INVAL;

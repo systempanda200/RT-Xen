@@ -256,6 +256,8 @@ rtpartition_dump(const struct scheduler *ops)
             rtpartition_dump_vcpu(svc);
         }
     }
+
+    printk("\n");
 }
 
 /*

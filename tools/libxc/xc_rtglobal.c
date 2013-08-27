@@ -2,8 +2,8 @@
  * (C) 2006 - Emmanuel Ackaouy - XenSource Inc.
  ****************************************************************************
  *
- *        File: xc_csched.c
- *      Author: Emmanuel Ackaouy
+ *        File: xc_rtglobal.c
+ *      Author: Sisu Xi
  *
  * Description: XC Interface to the rtglobal scheduler
  *

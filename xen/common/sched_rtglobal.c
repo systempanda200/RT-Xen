@@ -83,7 +83,7 @@
 /*
  * Used to limit debug output
  */
-// #define RTXEN_DEBUG
+#define RTXEN_DEBUG
 #ifdef RTXEN_DEBUG
 #define RTXEN_MAX       10  /* at most output 10 msgs for each func */
 #define RTXEN_WAKE      0
@@ -259,6 +259,15 @@ rtglobal_dump(const struct scheduler *ops)
         rtglobal_dump_pcpu(ops, cpu);
     }
 
+    printk("RunQueue info: \n");
+    loop = 0;
+    runq = RUNQ(ops);
+    list_for_each( iter, runq ) {
+        svc = __runq_elem(iter);
+        printk("\t%3d: ", ++loop);
+        rtglobal_dump_vcpu(svc);
+    }
+
     printk("Domain info: \n");
     loop = 0;
     list_for_each( iter_sdom, &prv->sdom ) {
@@ -273,14 +282,7 @@ rtglobal_dump(const struct scheduler *ops)
         }
     }
 
-    printk("RunQueue info: \n");
-    loop = 0;
-    runq = RUNQ(ops);
-    list_for_each( iter, runq ) {
-        svc = __runq_elem(iter);
-        printk("\t%3d: ", ++loop);
-        rtglobal_dump_vcpu(svc);
-    }
+    printk("\n");
 }
 
 /*
@@ -579,13 +581,13 @@ rtglobal_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
             : cpumask_cycle(vc->processor, &cpus);
     ASSERT( !cpumask_empty(&cpus) && cpumask_test_cpu(cpu, &cpus) );
 
-// #ifdef RTXEN_DEBUG
-//     if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_PICK] < RTXEN_MAX ) {
-//         printtime();
-//         rtglobal_dump_vcpu(RTGLOBAL_VCPU(vc));
-//         rtxen_counter[RTXEN_PICK]++;
-//     }
-// #endif
+#ifdef RTXEN_DEBUG
+    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_PICK] < RTXEN_MAX ) {
+        printtime();
+        rtglobal_dump_vcpu(RTGLOBAL_VCPU(vc));
+        rtxen_counter[RTXEN_PICK]++;
+    }
+#endif
 
     return cpu;
 }
@@ -958,40 +960,6 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
     }
     vcpu_schedule_unlock_irq(vc);
 }
-
-
-// /*
-//  * Since we only have one RunQ here, do we still need this function?
-//  */
-// static void
-// rtglobal_vcpu_migrate(const struct scheduler *ops, struct vcpu *vc, unsigned int new_cpu)
-// {
-// #ifdef RTXEN_DEBUG
-//     struct rtglobal_vcpu * svc = RTGLOBAL_VCPU(vc);
-//     if ( rtxen_counter[RTXEN_MIGRATE] < RTXEN_MAX ) {
-//         printtime();
-//         rtglobal_dump_vcpu(svc);
-//         printk("\tnew_cpu=%d\n", new_cpu);
-//         rtxen_counter[RTXEN_MIGRATE]++;
-//     }
-// #endif
-// }
-
-// /*
-//  * Not implemented for now.
-//  */
-// static void
-// rtglobal_vcpu_yield(const struct scheduler *ops, struct vcpu *vc)
-// {
-// #ifdef RTXEN_DEBUG
-//     struct rtglobal_vcpu * svc = RTGLOBAL_VCPU(vc);
-//     if ( rtxen_counter[RTXEN_YIELD] < RTXEN_MAX ) {
-//         printtime();
-//         rtglobal_dump_vcpu(svc);
-//         rtxen_counter[RTXEN_YIELD]++;
-//     }
-// #endif
-// }
 
 static struct rtglobal_private _rtglobal_priv;
 

@@ -4985,22 +4985,22 @@ static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
     }
 
     if (scinfo->vcpu != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
-        if (scinfo->vcpu < 1 || scinfo->vcpu > 65535) {
+        if (scinfo->vcpu < 0 || scinfo->vcpu > 65535) {
             LOG(ERROR, "Cpu vcpu out of range, "
-                       "valid values are within range from 1 to 65535");
+                     "valid values are within range from 0 to 65535");
             return ERROR_INVAL;
         }
         sdom.vcpu = scinfo->vcpu;
     }
 
     if (scinfo->extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
-        if (scinfo->extra < 1 || scinfo->extra > 65535) {
+        if (scinfo->extra < 0 || scinfo->extra > 65535) {
             LOG(ERROR, "Cpu extra out of range, "
-                       "valid values are within range from 1 to 65535");
+                     "valid values are within range from 0 to 65535");
             return ERROR_INVAL;
         }
         sdom.extra = scinfo->extra;
-    }
+    }    
 
     rc = xc_sched_rtglobal_domain_set(CTX->xch, domid, &sdom);
     if ( rc < 0 ) {
@@ -5066,18 +5066,18 @@ static int sched_rtpartition_domain_set(libxl__gc *gc, uint32_t domid,
     }
 
     if (scinfo->vcpu != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
-        if (scinfo->vcpu < 1 || scinfo->vcpu > 65535) {
+        if (scinfo->vcpu < 0 || scinfo->vcpu > 65535) {
             LOG(ERROR, "Cpu vcpu out of range, "
-                       "valid values are within range from 1 to 65535");
+                       "valid values are within range from 0 to 65535");
             return ERROR_INVAL;
         }
         sdom.vcpu = scinfo->vcpu;
     }
 
     if (scinfo->extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
-        if (scinfo->extra < 1 || scinfo->extra > 65535) {
+        if (scinfo->extra < 0 || scinfo->extra > 65535) {
             LOG(ERROR, "Cpu extra out of range, "
-                       "valid values are within range from 1 to 65535");
+                       "valid values are within range from 0 to 65535");
             return ERROR_INVAL;
         }
         sdom.extra = scinfo->extra;

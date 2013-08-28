@@ -271,6 +271,16 @@ struct cmd_spec cmd_table[] = {
       "-v VCPU,   --vcpu=VCPU         Vcpu (int)\n"
       "-e EXTRA,  --extra=EXTRA       Extra (int)\n"
     },
+    { "sched-rtpartition",
+      &main_sched_rtpartition, 0, 1,
+      "Get/set rtpartition scheduler parameters",
+      "[-d <Domain> [-w[=WEIGHT]]] [-p CPUPOOL]",
+      "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
+      "-p PERIOD, --period=PERIOD     Period (int)\n"
+      "-b BUDGET, --budget=BUDGET     Budget (int)\n"
+      "-v VCPU,   --vcpu=VCPU         Vcpu (int)\n"
+      "-e EXTRA,  --extra=EXTRA       Extra (int)\n"
+    },
     { "sched-sedf",
       &main_sched_sedf, 0, 1,
       "Get/set sedf scheduler parameters",

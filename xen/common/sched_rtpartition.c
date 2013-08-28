@@ -684,9 +684,6 @@ rtpartition_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_w
     struct rtpartition_vcpu * snext = NULL;
     struct task_slice ret;
 
-    /* burn_budget would return for IDLE VCPU */
-    burn_budgets(ops, scurr, now);
-
 #ifdef RTXEN_DEBUG
     if ( !is_idle_vcpu(scurr->vcpu) && scurr->vcpu->domain->domain_id != 0 && rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
     // if ( rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
@@ -696,6 +693,9 @@ rtpartition_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_w
         rtxen_counter[RTXEN_SCHED]++;
     }
 #endif
+
+    /* burn_budget would return for IDLE VCPU */
+    burn_budgets(ops, scurr, now);
 
     __repl_update(ops, cpu, now);
 
@@ -800,12 +800,8 @@ rtpartition_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
 {
     struct rtpartition_vcpu * const svc = RTPARTITION_VCPU(vc);
     const unsigned int cpu = vc->processor;
-    struct rtpartition_private * prv = RTPARTITION_PRIV(ops);
-    struct rtpartition_vcpu * snext = NULL;
-    struct rtpartition_vcpu * scurr = RTPARTITION_VCPU(curr_on_cpu(cpu));
     s_time_t now = NOW();
     
-
 #ifdef RTXEN_DEBUG
     if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_WAKE] < RTXEN_MAX ) {
         printtime();
@@ -822,11 +818,7 @@ rtpartition_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
 
     __runq_insert(ops, cpu, svc);
     __repl_update(ops, cpu, now);
-    snext = __runq_pick(cpu);   /* highest priority VCPU on RunQ */
-    if ( (prv->priority_scheme == EDF && snext->cur_deadline < scurr->cur_deadline) ||
-         (prv->priority_scheme == RM && snext->period < scurr->period) ) {
-        cpu_raise_softirq(cpu, SCHEDULE_SOFTIRQ);
-    }
+    cpu_raise_softirq(cpu, SCHEDULE_SOFTIRQ);
 
     return;
 }

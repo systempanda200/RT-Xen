@@ -60,6 +60,8 @@
 #include <xen/numa.h>
 #include <xen/iommu.h>
 #include <compat/vcpu.h>
+#include <xen/trace.h>          /* trace schedule overhead */
+
 
 DEFINE_PER_CPU(struct vcpu *, curr_vcpu);
 DEFINE_PER_CPU(unsigned long, cr4);
@@ -1464,6 +1466,10 @@ void context_switch(struct vcpu *prev, struct vcpu *next)
 {
     unsigned int cpu = smp_processor_id();
     cpumask_t dirty_mask;
+    /* trace overhead */
+    s_time_t t1, t2;
+    int flush_tlb = 0;
+    t1 = NOW();
 
     ASSERT(local_irq_is_enabled());
 
@@ -1475,6 +1481,7 @@ void context_switch(struct vcpu *prev, struct vcpu *next)
     {
         /* Other cpus call __sync_local_execstate from flush ipi handler. */
         flush_tlb_mask(&dirty_mask);
+        flush_tlb = 1;
     }
 
     if ( prev != next )
@@ -1530,7 +1537,20 @@ void context_switch(struct vcpu *prev, struct vcpu *next)
         /* Must be done with interrupts enabled */
         vpmu_load(next);
 
+    t2 = NOW();
+    TRACE_6D(TRC_SCHED_OVERHEAD_CONTEXT_SWITCH,
+             prev->domain->domain_id,
+             prev->vcpu_id,
+             next->domain->domain_id,
+             next->vcpu_id,
+             flush_tlb,
+             t2-t1);
+
+    t1 = NOW();
     context_saved(prev);
+    t2 = NOW();
+    TRACE_3D(TRC_SCHED_OVERHEAD_CONTEXT_SAVED, prev->domain->domain_id, prev->vcpu_id, t2-t1);
+
 
     if ( prev != next )
         _update_runstate_area(next);

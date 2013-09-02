@@ -58,6 +58,14 @@
 #define TRC_SCHED_CLASS     0x00022000   /* Scheduler-specific    */
 #define TRC_SCHED_VERBOSE   0x00028000   /* More inclusive scheduling */
 
+#define TRC_SCHED_OVERHEAD  0x00024000   /* Trace to record scheduling overhead */
+#define TRC_SCHED_OVERHEAD_SCHED_LATENCY    (TRC_SCHED_OVERHEAD + 1)
+#define TRC_SCHED_OVERHEAD_CONTEXT_SWITCH   (TRC_SCHED_OVERHEAD + 2)
+#define TRC_SCHED_OVERHEAD_CONTEXT_SAVED    (TRC_SCHED_OVERHEAD + 3)
+#define TRC_SCHED_OVERHEAD_WAKE             (TRC_SCHED_OVERHEAD + 4)
+#define TRC_SCHED_OVERHEAD_SLEEP            (TRC_SCHED_OVERHEAD + 5)
+#define TRC_SCHED_OVERHEAD_SELF_SWITCH      (TRC_SCHED_OVERHEAD + 6)
+
 /*
  * The highest 3 bits of the last 12 bits of TRC_SCHED_CLASS above are
  * reserved for encoding what scheduler produced the information. The
@@ -95,26 +103,16 @@
 
 #define TRC_SCHED_RUNSTATE_CHANGE   (TRC_SCHED_MIN + 1)
 #define TRC_SCHED_CONTINUE_RUNNING  (TRC_SCHED_MIN + 2)
-
-/* Trace to record scheduling overhead */
-#define TRC_SCHED_OVERHEAD_SCHED_LATENCY    (TRC_SCHED_MIN + 3)
-#define TRC_SCHED_OVERHEAD_CONTEXT_SWITCH   (TRC_SCHED_MIN + 4)
-#define TRC_SCHED_OVERHEAD_CONTEXT_SAVED    (TRC_SCHED_MIN + 5)
-#define TRC_SCHED_OVERHEAD_WAKE             (TRC_SCHED_MIN + 6)
-#define TRC_SCHED_OVERHEAD_SLEEP            (TRC_SCHED_MIN + 7)
-#define TRC_SCHED_OVERHEAD_SELF_SWITCH      (TRC_SCHED_MIN + 8)
-
-
 #define TRC_SCHED_DOM_ADD        (TRC_SCHED_VERBOSE +  1)
 #define TRC_SCHED_DOM_REM        (TRC_SCHED_VERBOSE +  2)
-#define TRC_SCHED_SLEEP          (TRC_SCHED_VERBOSE +  3)
-#define TRC_SCHED_WAKE           (TRC_SCHED_VERBOSE +  4)
+#define TRC_SCHED_SLEEP          (TRC_SCHED_VERBOSE +  3)   
+#define TRC_SCHED_WAKE           (TRC_SCHED_VERBOSE +  4)   
 #define TRC_SCHED_YIELD          (TRC_SCHED_VERBOSE +  5)
 #define TRC_SCHED_BLOCK          (TRC_SCHED_VERBOSE +  6)
-#define TRC_SCHED_SHUTDOWN       (TRC_SCHED_VERBOSE +  7)
-#define TRC_SCHED_CTL            (TRC_SCHED_VERBOSE +  8)
-#define TRC_SCHED_ADJDOM         (TRC_SCHED_VERBOSE +  9)
-#define TRC_SCHED_SWITCH         (TRC_SCHED_VERBOSE + 10)
+#define TRC_SCHED_SHUTDOWN       (TRC_SCHED_VERBOSE +  7)   
+#define TRC_SCHED_CTL            (TRC_SCHED_VERBOSE +  8)   
+#define TRC_SCHED_ADJDOM         (TRC_SCHED_VERBOSE +  9)   
+#define TRC_SCHED_SWITCH         (TRC_SCHED_VERBOSE + 10)   
 #define TRC_SCHED_S_TIMER_FN     (TRC_SCHED_VERBOSE + 11)
 #define TRC_SCHED_T_TIMER_FN     (TRC_SCHED_VERBOSE + 12)
 #define TRC_SCHED_DOM_TIMER_FN   (TRC_SCHED_VERBOSE + 13)

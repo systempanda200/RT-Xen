@@ -160,14 +160,14 @@ __runq_insert(const struct scheduler *ops, unsigned int cpu, struct rtpartition_
 
         if ( svc->cur_budget > 0 ) { // svc still has budget
             if ( iter_svc->cur_budget == 0 ||
-                 ( ( prv->priority_scheme == EDF && svc->cur_deadline < iter_svc->cur_deadline ) ||
-                   ( prv->priority_scheme == RM && svc->period < iter_svc->period )) ) {
+                 ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
+                   ( prv->priority_scheme == RM && svc->period <= iter_svc->period )) ) {
                     break;
             }
         } else { // svc has no budget
             if ( iter_svc->cur_budget == 0 &&
-                 ( ( prv->priority_scheme == EDF && svc->cur_deadline < iter_svc->cur_deadline ) ||
-                   ( prv->priority_scheme == RM && svc->period < iter_svc->period )) ) {
+                 ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
+                   ( prv->priority_scheme == RM && svc->period <= iter_svc->period )) ) {
                     break;
             }
         }

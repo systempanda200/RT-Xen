@@ -747,14 +747,13 @@ rtpartition_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_w
         }
     }
 
-    if ( is_idle_vcpu(snext->vcpu) || snext->cur_budget > MILLISECS(1)) {
-        ret.time = MILLISECS(1);
-    } else if ( snext->cur_budget > 0 ) {
-        ret.time = MICROSECS(snext->budget);
-    } else {
-        ret.time = MICROSECS(500);  /* only let extra run for 500 us */
-    }
+    // if ( is_idle_vcpu(snext->vcpu) || snext->cur_budget > MILLISECS(1)) {
+    //     ret.time = MILLISECS(1);
+    // } else if ( snext->cur_budget > 0 ) {
+    //     ret.time = MICROSECS(snext->budget);
+    // }
 
+    ret.time = MILLISECS(1);
     ret.task = snext->vcpu;
 
 #ifdef RTXEN_DEBUG

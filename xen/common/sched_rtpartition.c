@@ -569,14 +569,6 @@ rtpartition_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
             : cpumask_cycle(vc->processor, &cpus);
     ASSERT( !cpumask_empty(&cpus) && cpumask_test_cpu(cpu, &cpus) );
 
-// #ifdef RTXEN_DEBUG
-//     if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_PICK] < RTXEN_MAX ) {
-//         printtime();
-//         rtpartition_dump_vcpu(RTPARTITION_VCPU(vc));
-//         rtxen_counter[RTXEN_PICK]++;
-//     }
-// #endif
-
     return cpu;
 }
 
@@ -596,6 +588,11 @@ burn_budgets(const struct scheduler *ops, struct rtpartition_vcpu *svc, s_time_t
 
     /* don't burn budget for idle VCPU */
     if ( is_idle_vcpu(svc->vcpu) ) {
+        return;
+    }
+
+    /* don't burn budget for Domain-0, RT-Xen use only */
+    if ( svc->sdom->dom->domain_id == 0 ) {
         return;
     }
 
@@ -624,7 +621,7 @@ burn_budgets(const struct scheduler *ops, struct rtpartition_vcpu *svc, s_time_t
     if ( delta%MICROSECS(1) > MICROSECS(1)/2 ) consume++;
 
     svc->cur_budget -= consume;
-    if ( svc->cur_budget < MICROSECS(500) ) svc->cur_budget = 0;
+    if ( svc->cur_budget < 0 ) svc->cur_budget = 0;
 }
 
 /* RunQ is sorted. Pick first one budget. If no one, return NULL */
@@ -684,16 +681,6 @@ rtpartition_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_w
     struct rtpartition_vcpu * snext = NULL;
     struct task_slice ret;
 
-#ifdef RTXEN_DEBUG
-    if ( !is_idle_vcpu(scurr->vcpu) && scurr->vcpu->domain->domain_id != 0 && rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
-    // if ( rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
-        printtime();
-        printk("from: ");
-        rtpartition_dump_vcpu(scurr);
-        rtxen_counter[RTXEN_SCHED]++;
-    }
-#endif
-
     /* burn_budget would return for IDLE VCPU */
     burn_budgets(ops, scurr, now);
 
@@ -717,17 +704,6 @@ rtpartition_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_w
             snext = scurr;
         }
     }
-
-    /* Trace switch self problem */
-    // if ( snext != scurr &&
-    //      !is_idle_vcpu(snext->vcpu) &&
-    //      !is_idle_vcpu(scurr->vcpu) &&
-    //      snext->vcpu->domain->domain_id == scurr->vcpu->domain->domain_id &&
-    //      scurr->cur_budget > 0 &&
-    //      vcpu_runnable(current) &&
-    //      snext->cur_deadline < scurr->cur_deadline ) {
-    //     TRACE_3D(TRC_SCHED_RTPARTITION_SWITCHSELF, scurr->vcpu->domain->domain_id, scurr->vcpu->vcpu_id, snext->vcpu->vcpu_id);
-    // }
 
     if ( snext != scurr &&
          !is_idle_vcpu(current) &&
@@ -756,15 +732,6 @@ rtpartition_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_w
     ret.time = MILLISECS(1);
     ret.task = snext->vcpu;
 
-#ifdef RTXEN_DEBUG
-    if ( !is_idle_vcpu(snext->vcpu) && snext->vcpu->domain->domain_id != 0 && rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
-    // if ( rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
-        printtime();
-        printk(" to : ");
-        rtpartition_dump_vcpu(snext);
-    }
-#endif
-
     return ret;
 }
 
@@ -774,14 +741,6 @@ static void
 rtpartition_vcpu_sleep(const struct scheduler *ops, struct vcpu *vc)
 {
     struct rtpartition_vcpu * const svc = RTPARTITION_VCPU(vc);
-
-#ifdef RTXEN_DEBUG
-    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_SLEEP] < RTXEN_MAX ) {
-        printtime();
-        rtpartition_dump_vcpu(svc);
-        rtxen_counter[RTXEN_SLEEP]++;
-    }
-#endif
 
     BUG_ON( is_idle_vcpu(vc) );
 
@@ -801,14 +760,6 @@ rtpartition_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
     const unsigned int cpu = vc->processor;
     s_time_t now = NOW();
     
-#ifdef RTXEN_DEBUG
-    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_WAKE] < RTXEN_MAX ) {
-        printtime();
-        rtpartition_dump_vcpu(svc);
-        rtxen_counter[RTXEN_WAKE]++;
-    }
-#endif
-
     BUG_ON( is_idle_vcpu(vc) );
 
     if ( unlikely(curr_on_cpu(cpu) == vc) ||

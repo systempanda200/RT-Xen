@@ -636,7 +636,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
     if ( delta%MICROSECS(1) > MICROSECS(1)/2 ) consume++;
 
     svc->cur_budget -= consume;
-    if ( svc->cur_budget < 0 ) svc->cur_budget = 0;
+    if ( svc->cur_budget < MICROSECS(500) ) svc->cur_budget = 0;
 }
 
 /* RunQ is sorted. Pick first one within cpumask. If no one, return NULL */

@@ -235,6 +235,7 @@ rtglobal_dump(const struct scheduler *ops)
     int loop = 0;
 
     printtime();
+    printk("Priority Scheme: ");
     if ( prv->priority_scheme == EDF ) printk("EDF\n");
     else printk ("RM\n");
 
@@ -243,7 +244,7 @@ rtglobal_dump(const struct scheduler *ops)
         rtglobal_dump_pcpu(ops, cpu);
     }
 
-    printk("RunQueue info: \n");
+    printk("Global RunQueue info: \n");
     loop = 0;
     runq = RUNQ(ops);
     list_for_each( iter, runq ) {
@@ -294,6 +295,9 @@ rtglobal_init(struct scheduler *ops)
 
     printk("This is the Deferrable Server version of the preemptive RTGLOBAL scheduler\n");
     printk("If you want to use it as a periodic server, please run a background busy CPU task\n");
+    printk("----#########----\n");
+    printk("This is the bounced version! It will force vm wtih id 1 to bounce between PCPUs\n");
+    printk("----########----\n");
 
     printtime();
     printk("\n");
@@ -632,7 +636,7 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
     cpumask_t cpu_common;
 
     list_for_each(iter, runq) {
-        iter_svc = __runq_elem(iter);   
+        iter_svc = __runq_elem(iter);
 
         cpumask_copy(&cpu_common, iter_svc->vcpu->cpu_affinity);
         cpumask_and(&cpu_common, &mask, &cpu_common);
@@ -640,6 +644,10 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
             continue;
 
         if ( iter_svc->cur_budget <= 0 && iter_svc->sdom->extra == 0 )
+            continue;
+
+        /* bounce for VMs with id 1 */
+        if ( iter_svc->sdom->dom->domain_id == 1 && iter_svc->vcpu->processor == smp_processor_id() )
             continue;
 
         svc = iter_svc;

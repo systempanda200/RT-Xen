@@ -100,7 +100,7 @@ struct rtglobal_private {
 };
 
 /*
- * Virtual CPU
+ * Virtual CPU for scheduler
  */
 struct rtglobal_vcpu {
     struct list_head runq_elem; /* On the runqueue list */
@@ -337,7 +337,7 @@ static void
 rtglobal_free_pdata(const struct scheduler *ops, void *pcpu, int cpu)
 {
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
-    cpumask_clear_cpu(cpu, &prv->cpus);
+    cpumask_clear_cpu(cpu, &prv->cpus); /*Meng: why clear mask for free_pdata?*/
     printtime();
     printk("cpu=%d\n", cpu);
 }
@@ -463,7 +463,7 @@ rtglobal_free_vdata(const struct scheduler *ops, void *priv)
     struct rtglobal_vcpu *svc = priv;
     printtime();
     rtglobal_dump_vcpu(svc);
-    xfree(svc);
+    xfree(svc);/*Meng: why don't need to delete the vcpu from vcpu list?*/
 }
 
 /* lock is grabbed before calling this function */
@@ -502,6 +502,7 @@ rtglobal_vcpu_remove(const struct scheduler *ops, struct vcpu *vc)
 
 /*
  * Other important functions
+ * Meng: This is for xen tool scheduler operation! Need to rewrite to privide more functions
  */
 /* do we need the lock here? */
 /* TODO: How to return the per VCPU parameters? Right now return the sum of budgets */
@@ -592,6 +593,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
     }
 
     /* don't burn budget for Domain-0, RT-Xen use only */
+    /* Meng: should we allow people to tune the period/budget for dom0?*/
     if ( svc->sdom->dom->domain_id == 0 ) {
         return;
     }
@@ -606,7 +608,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
     }
 
     delta = now - svc->last_start;
-    if ( delta < 0 ) {
+    if ( delta < 0 ) { /*Meng: should always later than last_start, why delta<0 can happen?*/
         printk("%s, delta = %ld for ", __func__, delta);
         rtglobal_dump_vcpu(svc);
         svc->last_start = now;  /* update last_start */
@@ -618,10 +620,10 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
 
     /* burn at microseconds level */
     consume = ( delta/MICROSECS(1) );
-    if ( delta%MICROSECS(1) > MICROSECS(1)/2 ) consume++;
+    if ( delta%MICROSECS(1) > MICROSECS(1)/2 ) consume++; /*Meng: when burn budget, not burn the exact time? should we do this?*/
 
     svc->cur_budget -= consume;
-    if ( svc->cur_budget < 0 ) svc->cur_budget = 0;
+    if ( svc->cur_budget < 0 ) svc->cur_budget = 0; /*Meng: we does not consume the exact time actually. can we bound the time drift?*/
 }
 
 /* RunQ is sorted. Pick first one within cpumask. If no one, return NULL */
@@ -674,8 +676,8 @@ __repl_update(const struct scheduler *ops, s_time_t now)
 
         diff = now - svc->cur_deadline;
         if ( diff > 0 ) {
-            count = (diff/MILLISECS(svc->period)) + 1;
-            svc->cur_deadline += count * MILLISECS(svc->period);
+            count = (diff/MILLISECS(svc->period)) + 1; /*Meng: wrap-around issue? when one vcpu wrap around but others are not, how to compare their deadline?*/
+            svc->cur_deadline += count * MILLISECS(svc->period); /*Meng: TODO:deadline has the wrap around problem!*/
             svc->cur_budget = svc->budget * 1000;
             __runq_remove(svc);
             __runq_insert(ops, svc);
@@ -689,7 +691,7 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
 {
     const int cpu = smp_processor_id();
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
-    struct rtglobal_vcpu * const scurr = RTGLOBAL_VCPU(current);
+    struct rtglobal_vcpu * const scurr = RTGLOBAL_VCPU(current); /*current return the current vcpu on the core*/
     struct rtglobal_vcpu * snext = NULL;
     struct task_slice ret;
 
@@ -764,7 +766,7 @@ rtglobal_vcpu_sleep(const struct scheduler *ops, struct vcpu *vc)
     BUG_ON( is_idle_vcpu(vc) );
 
     if ( curr_on_cpu(vc->processor) == vc ) {
-        cpu_raise_softirq(vc->processor, SCHEDULE_SOFTIRQ);
+        cpu_raise_softirq(vc->processor, SCHEDULE_SOFTIRQ); /*Meng: where is the handler for this SOFTIRQ?*/
         return;
     }
 
@@ -819,6 +821,7 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
             return;
         }
         iter_svc = RTGLOBAL_VCPU(iter_vc);
+        /*Meng: BUG: should be > because scheduled is lowest priority Vcpu*/
         if ( scheduled == NULL || iter_svc->cur_deadline < scheduled->cur_deadline ) {
             scheduled = iter_svc;
         }

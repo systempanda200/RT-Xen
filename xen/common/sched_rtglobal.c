@@ -75,9 +75,9 @@
 /*
  * Flags
  */
-#define __RTGLOBAL_scheduled            1
+#define __RTGLOBAL_scheduled            1  /* This vcpu is scheduled to run (has been removed from runq) */
 #define RTGLOBAL_scheduled (1<<__RTGLOBAL_scheduled)
-#define __RTGLOBAL_delayed_runq_add     2
+#define __RTGLOBAL_delayed_runq_add     2  /* This vcpu is scheduled to be preempted (will be added back to runq) */
 #define RTGLOBAL_delayed_runq_add (1<<__RTGLOBAL_delayed_runq_add)
 
 /*
@@ -95,7 +95,7 @@ struct rtglobal_private {
     struct list_head sdom;  /* list of availalbe domains, used for dump */
     struct list_head runq;  /* Ordered list of runnable VMs */
     cpumask_t cpus;         /* cpumask_t of available physical cpus */
-    cpumask_t tickled;      /* another cpu in the queue already ticked this one */
+    cpumask_t tickled;      /* another vcpu in the queue already ticked these cpus */
     unsigned priority_scheme;
 };
 
@@ -155,6 +155,7 @@ __runq_remove(struct rtglobal_vcpu *svc)
 }
 
 /* lock is grabbed before calling this function */
+/* How to insert vcpu into runq depends on the scheduling algorithm: EDF or RM*/
 static void
 __runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
 {
@@ -593,7 +594,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
     }
 
     /* don't burn budget for Domain-0, RT-Xen use only */
-    /* Meng: should we allow people to tune the period/budget for dom0?*/
+    /* Meng: should we allow people to tune the period/budget for dom0? need to change*/
     if ( svc->sdom->dom->domain_id == 0 ) {
         return;
     }
@@ -608,7 +609,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
     }
 
     delta = now - svc->last_start;
-    if ( delta < 0 ) { /*Meng: should always later than last_start, why delta<0 can happen?*/
+    if ( delta < 0 ) { /*Meng: should always later than last_start, why delta<0 can happen?Confirmed: should not happen*/
         printk("%s, delta = %ld for ", __func__, delta);
         rtglobal_dump_vcpu(svc);
         svc->last_start = now;  /* update last_start */
@@ -649,6 +650,7 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
             continue;
 
         /* bounce for VMs with id 1 */
+        /* Meng: only for experiment. */
         if ( iter_svc->sdom->dom->domain_id == 1 && iter_svc->vcpu->processor == smp_processor_id() )
             continue;
 
@@ -660,6 +662,7 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
 }
 
 /* lock is grabbed before calling this function */
+/* Meng: use runq_insert() to sort runq based on EDF or RM */
 static void
 __repl_update(const struct scheduler *ops, s_time_t now)
 {
@@ -679,7 +682,7 @@ __repl_update(const struct scheduler *ops, s_time_t now)
             count = (diff/MILLISECS(svc->period)) + 1; /*Meng: wrap-around issue? when one vcpu wrap around but others are not, how to compare their deadline?*/
             svc->cur_deadline += count * MILLISECS(svc->period); /*Meng: TODO:deadline has the wrap around problem!*/
             svc->cur_budget = svc->budget * 1000;
-            __runq_remove(svc);
+            __runq_remove(svc); /* re-sort the updated runq */
             __runq_insert(ops, svc);
         }
     }
@@ -691,7 +694,7 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
 {
     const int cpu = smp_processor_id();
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
-    struct rtglobal_vcpu * const scurr = RTGLOBAL_VCPU(current); /*current return the current vcpu on the core*/
+    struct rtglobal_vcpu * const scurr = RTGLOBAL_VCPU(current); /* current return the current vcpu on the core. The current running vcpu is not in runq */
     struct rtglobal_vcpu * snext = NULL;
     struct task_slice ret;
 
@@ -704,7 +707,7 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
 
     __repl_update(ops, now);
 
-    if ( tasklet_work_scheduled ) {
+    if ( tasklet_work_scheduled ) { /* Meng?: what is tasklet_work_schedule? */
         snext = RTGLOBAL_VCPU(idle_vcpu[cpu]);
     } else {
         cpumask_t cur_cpu;
@@ -716,7 +719,7 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
 
         /* if scurr has higher priority and budget, still pick scurr */
         if ( !is_idle_vcpu(current) &&
-             vcpu_runnable(current) &&
+             vcpu_runnable(current) && /*Meng:sisu said vcpu_runnable() check if the vcpu has task running or not*/
              scurr->cur_budget > 0 &&
              ( is_idle_vcpu(snext->vcpu) ||
                scurr->cur_deadline <= snext->cur_deadline ) ) {
@@ -725,6 +728,7 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
         }
     }
 
+    /* snext has higher priority, pick snext */
     if ( snext != scurr &&
          !is_idle_vcpu(current) &&
          vcpu_runnable(current) ) {
@@ -778,6 +782,9 @@ rtglobal_vcpu_sleep(const struct scheduler *ops, struct vcpu *vc)
 }
 
 /*
+ * runq_tickle(2)
+ * choose one cpu for the new (vcpu) to run on
+ * priority: previous cpu > idle cpu > busy cpu
  * called by wake() and context_saved()
  * we have a running candidate here, the kick logic is:
  * Among all the cpus that are within the cpu affinity
@@ -804,7 +811,7 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
     cpumask_copy(&not_tickled, new->vcpu->cpu_affinity);
     cpumask_andnot(&not_tickled, &not_tickled, &prv->tickled);
 
-    /* 1) if new's previous cpu is idle, kick it for cache benefit */
+    /* 1) if new vcpu's previous cpu is idle, kick it for cache benefit */
     if ( is_idle_vcpu(curr_on_cpu(new->vcpu->processor)) ) {
         cpumask_set_cpu(new->vcpu->processor, &prv->tickled);
         cpu_raise_softirq(new->vcpu->processor, SCHEDULE_SOFTIRQ);
@@ -821,8 +828,9 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
             return;
         }
         iter_svc = RTGLOBAL_VCPU(iter_vc);
-        /*Meng: BUG: should be > because scheduled is lowest priority Vcpu*/
-        if ( scheduled == NULL || iter_svc->cur_deadline < scheduled->cur_deadline ) {
+        /* Meng: choose the cpu with lowest priority vcpu to schedule this task. BUG fixed */
+        /* Meng?: if it's RM, the priority decision is different! we should add the swith between RM and EDF */
+        if ( scheduled == NULL || iter_svc->cur_deadline > scheduled->cur_deadline ) { 
             scheduled = iter_svc;
         }
     }
@@ -856,7 +864,7 @@ rtglobal_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
     if ( unlikely(__vcpu_on_runq(svc)) ) return;
 
     /* if context hasn't been saved yet, set flag so it will add later */
-    if ( unlikely(test_bit(__RTGLOBAL_scheduled, &svc->flags)) ) {
+    if ( unlikely(test_bit(__RTGLOBAL_scheduled, &svc->flags)) ) { /* Meng?: not clear the reason of this condition */
         set_bit(__RTGLOBAL_delayed_runq_add, &svc->flags);
         return;
     }
@@ -918,7 +926,7 @@ const struct scheduler sched_rtglobal_def = {
     .destroy_domain = rtglobal_dom_destroy,
     .alloc_vdata    = rtglobal_alloc_vdata,
     .free_vdata     = rtglobal_free_vdata,
-    .insert_vcpu    = rtglobal_vcpu_insert,
+    .insert_vcpu    = rtglobal_vcpu_insert, /*vcpu domain*/
     .remove_vcpu    = rtglobal_vcpu_remove,
 
     .adjust         = rtglobal_dom_cntl,

@@ -707,7 +707,7 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
 
     __repl_update(ops, now);
 
-    if ( tasklet_work_scheduled ) { /* Meng?: what is tasklet_work_schedule? */
+    if ( tasklet_work_scheduled ) { /* Meng?: what is tasklet_work_schedule? not clear. */
         snext = RTGLOBAL_VCPU(idle_vcpu[cpu]);
     } else {
         cpumask_t cur_cpu;
@@ -829,7 +829,7 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
         }
         iter_svc = RTGLOBAL_VCPU(iter_vc);
         /* Meng: choose the cpu with lowest priority vcpu to schedule this task. BUG fixed */
-        /* Meng?: if it's RM, the priority decision is different! we should add the swith between RM and EDF */
+        /* Meng?: if it's RM, the priority decision is different! we should add the swith between RM and EDF. Confirmed */
         if ( scheduled == NULL || iter_svc->cur_deadline > scheduled->cur_deadline ) { 
             scheduled = iter_svc;
         }
@@ -864,7 +864,7 @@ rtglobal_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
     if ( unlikely(__vcpu_on_runq(svc)) ) return;
 
     /* if context hasn't been saved yet, set flag so it will add later */
-    if ( unlikely(test_bit(__RTGLOBAL_scheduled, &svc->flags)) ) { /* Meng?: not clear the reason of this condition */
+    if ( unlikely(test_bit(__RTGLOBAL_scheduled, &svc->flags)) ) { /* Meng?: not clear the reason of this condition. copy credit2. in credit2 has the same code */
         set_bit(__RTGLOBAL_delayed_runq_add, &svc->flags);
         return;
     }
@@ -935,7 +935,7 @@ const struct scheduler sched_rtglobal_def = {
     .do_schedule    = rtglobal_schedule,
     .sleep          = rtglobal_vcpu_sleep,
     .wake           = rtglobal_vcpu_wake,
-    .context_saved  = rtglobal_context_saved,
+    .context_saved  = rtglobal_context_saved, /* Only need to save for global scheduling */
 
     .yield          = NULL,
     .migrate        = NULL,

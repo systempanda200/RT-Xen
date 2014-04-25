@@ -81,6 +81,22 @@
 #define RTGLOBAL_delayed_runq_add (1<<__RTGLOBAL_delayed_runq_add)
 
 /*
+ * Used to limit debug output
+ */
+#define RTXEN_DEBUG
+#ifdef RTXEN_DEBUG
+#define RTXEN_MAX       10  /* at most output 10 msgs for each func */
+#define RTXEN_WAKE      0
+#define RTXEN_SLEEP     1
+#define RTXEN_PICK      2
+#define RTXEN_SCHED     3
+#define RTXEN_MIGRATE   4
+#define RTXEN_CONTEXT   5
+#define RTXEN_YIELD     6
+static int rtxen_counter[7] = {0};
+#endif
+
+/*
  * Used to printout debug information
  */
 #define printtime()     ( printk("%d : %3ld.%3ld : %-19s ", smp_processor_id(), NOW()/MILLISECS(1), NOW()%MILLISECS(1)/1000, __func__) )
@@ -571,6 +587,14 @@ rtglobal_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
             : cpumask_cycle(vc->processor, &cpus);
     ASSERT( !cpumask_empty(&cpus) && cpumask_test_cpu(cpu, &cpus) );
 
+#ifdef RTXEN_DEBUG
+    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_PICK] < RTXEN_MAX ) {
+        printtime();
+        rtglobal_dump_vcpu(RTGLOBAL_VCPU(vc));
+        rtxen_counter[RTXEN_PICK]++;
+    }
+#endif
+
     return cpu;
 }
 
@@ -590,12 +614,6 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
 
     /* don't burn budget for idle VCPU */
     if ( is_idle_vcpu(svc->vcpu) ) {
-        return;
-    }
-
-    /* don't burn budget for Domain-0, RT-Xen use only */
-    /* Meng: should we allow people to tune the period/budget for dom0? need to change*/
-    if ( svc->sdom->dom->domain_id == 0 ) {
         return;
     }
 
@@ -705,6 +723,16 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
     /* burn_budget would return for IDLE VCPU */
     burn_budgets(ops, scurr, now);
 
+#ifdef RTXEN_DEBUG
+    if ( !is_idle_vcpu(scurr->vcpu) && scurr->vcpu->domain->domain_id != 0 && rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
+    // if ( rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
+        printtime();
+        printk("from: ");
+        rtglobal_dump_vcpu(scurr);
+        rtxen_counter[RTXEN_SCHED]++;
+    }
+#endif
+
     __repl_update(ops, now);
 
     if ( tasklet_work_scheduled ) { /* Meng?: what is tasklet_work_schedule? not clear. */
@@ -729,6 +757,17 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
     }
 
     /* snext has higher priority, pick snext */
+    /* Trace switch self problem */
+    // if ( snext != scurr &&
+    //      !is_idle_vcpu(snext->vcpu) &&
+    //      !is_idle_vcpu(scurr->vcpu) &&
+    //      snext->vcpu->domain->domain_id == scurr->vcpu->domain->domain_id &&
+    //      scurr->cur_budget > 0 &&
+    //      vcpu_runnable(current) &&
+    //      snext->cur_deadline < scurr->cur_deadline ) {
+    //     TRACE_3D(TRC_SCHED_RTGLOBAL_SWITCHSELF, scurr->vcpu->domain->domain_id, scurr->vcpu->vcpu_id, snext->vcpu->vcpu_id);
+    // }
+
     if ( snext != scurr &&
          !is_idle_vcpu(current) &&
          vcpu_runnable(current) ) {
@@ -757,6 +796,15 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
     ret.time = MILLISECS(1);
     ret.task = snext->vcpu;
 
+#ifdef RTXEN_DEBUG
+    if ( !is_idle_vcpu(snext->vcpu) && snext->vcpu->domain->domain_id != 0 && rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
+    // if ( rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
+        printtime();
+        printk(" to : ");
+        rtglobal_dump_vcpu(snext);
+    }
+#endif
+
     return ret;
 }
 
@@ -766,6 +814,14 @@ static void
 rtglobal_vcpu_sleep(const struct scheduler *ops, struct vcpu *vc)
 {
     struct rtglobal_vcpu * const svc = RTGLOBAL_VCPU(vc);
+
+#ifdef RTXEN_DEBUG
+    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_SLEEP] < RTXEN_MAX ) {
+        printtime();
+        rtglobal_dump_vcpu(svc);
+        rtxen_counter[RTXEN_SLEEP]++;
+    }
+#endif
 
     BUG_ON( is_idle_vcpu(vc) );
 
@@ -856,6 +912,14 @@ rtglobal_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
     struct rtglobal_vcpu * snext = NULL;        /* highest priority on RunQ */
 
+#ifdef RTXEN_DEBUG
+    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_WAKE] < RTXEN_MAX ) {
+        printtime();
+        rtglobal_dump_vcpu(svc);
+        rtxen_counter[RTXEN_WAKE]++;
+    }
+#endif
+
     BUG_ON( is_idle_vcpu(vc) );
 
     if ( unlikely(curr_on_cpu(vc->processor) == vc) ) return;
@@ -892,6 +956,14 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
     struct rtglobal_vcpu * svc = RTGLOBAL_VCPU(vc);
     struct rtglobal_vcpu * snext = NULL;
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
+
+#ifdef RTXEN_DEBUG
+    if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_CONTEXT] < RTXEN_MAX ) {
+        printtime();
+        rtglobal_dump_vcpu(svc);
+        rtxen_counter[RTXEN_CONTEXT]++;
+    }
+#endif
 
     clear_bit(__RTGLOBAL_scheduled, &svc->flags);
     if ( is_idle_vcpu(vc) ) return;

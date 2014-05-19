@@ -314,6 +314,21 @@ struct xen_domctl_max_vcpus {
 typedef struct xen_domctl_max_vcpus xen_domctl_max_vcpus_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_vcpus_t);
 
+/*
+ * This structure is used to pass to rtglobal scheduler from a 
+ * privileged domain to Xen
+ */
+struct xen_domctl_sched_rtglobal_params {
+    struct {
+        uint16_t period;
+        uint16_t budget;
+        uint16_t extra;
+    } vcpus[XEN_LEGACY_MAX_VCPUS];
+    uint16_t num_vcpus;
+    uint16_t vcpu_index;
+};
+typedef struct xen_domctl_sched_rtglobal_params xen_domctl_sched_rtglobal_params_t;
+DEFINE_XEN_GUEST_HANDLE(xen_domctl_sched_rtglobal_params_t);
 
 /* XEN_DOMCTL_scheduler_op */
 /* Scheduler types. */
@@ -323,6 +338,10 @@ DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_vcpus_t);
 #define XEN_SCHEDULER_ARINC653 7
 #define XEN_SCHEDULER_RTGLOBAL 8
 #define XEN_SCHEDULER_RTPARTITION 9
+#define XEN_SCHEDULER_RTGLOBAL_EDF  81
+#define XEN_SCHEDULER_RTGLOBAL_RM   82
+#define EDF     XEN_SCHEDULER_RTGLOBAL_EDF
+#define RM      XEN_SCHEDULER_RTGLOBAL_RM
 
 /* Set or get info? */
 #define XEN_DOMCTL_SCHEDOP_putinfo 0
@@ -345,12 +364,9 @@ struct xen_domctl_scheduler_op {
         struct xen_domctl_sched_credit2 {
             uint16_t weight;
         } credit2;
-		struct xen_domctl_sched_rtglobal {
-			uint16_t period;
-			uint16_t budget;
-			uint16_t extra;
-			uint16_t vcpu;
-		} rtglobal;
+        struct xen_domctl_sched_rtglobal{
+            XEN_GUEST_HANDLE_64(xen_domctl_sched_rtglobal_params_t) schedule;
+        } rtglobal;
 		struct xen_domctl_sched_rtpartition {
 			uint16_t period;
 			uint16_t budget;

@@ -583,6 +583,15 @@ struct xen_sysctl_credit_schedule {
 typedef struct xen_sysctl_credit_schedule xen_sysctl_credit_schedule_t;
 DEFINE_XEN_GUEST_HANDLE(xen_sysctl_credit_schedule_t);
 
+struct xen_sysctl_rtglobal_schedule {
+    /* Priority scheme of the real time scheduler */
+    uint16_t priority_scheme;
+    /* Server scheme used by the real time scheduler */
+//    unsigned server_scheme;
+};
+typedef struct xen_sysctl_rtglobal_schedule xen_sysctl_rtglobal_schedule_t;
+DEFINE_XEN_GUEST_HANDLE(xen_sysctl_rtglobal_schedule_t);
+
 /* XEN_SYSCTL_scheduler_op */
 /* Set or get info? */
 #define XEN_SYSCTL_SCHEDOP_putinfo 0
@@ -596,6 +605,7 @@ struct xen_sysctl_scheduler_op {
             XEN_GUEST_HANDLE_64(xen_sysctl_arinc653_schedule_t) schedule;
         } sched_arinc653;
         struct xen_sysctl_credit_schedule sched_credit;
+        struct xen_sysctl_rtglobal_schedule sched_rtglobal;
     } u;
 };
 typedef struct xen_sysctl_scheduler_op xen_sysctl_scheduler_op_t;

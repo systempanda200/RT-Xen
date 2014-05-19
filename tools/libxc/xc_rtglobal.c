@@ -48,16 +48,56 @@ xc_sched_rtglobal_domain_get(
     struct xen_domctl_sched_rtglobal *sdom)
 {
     DECLARE_DOMCTL;
-    int err;
+    int rc;
 
     domctl.cmd = XEN_DOMCTL_scheduler_op;
     domctl.domain = (domid_t) domid;
     domctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTGLOBAL;
     domctl.u.scheduler_op.cmd = XEN_DOMCTL_SCHEDOP_getinfo;
 
-    err = do_domctl(xch, &domctl);
-    if ( err == 0 )
+    rc = do_domctl(xch, &domctl);
+    if ( rc == 0 )
         *sdom = domctl.u.scheduler_op.u.rtglobal;
 
-    return err;
+    return rc;
+}
+
+int
+xc_sched_rtglobal_params_set(
+    xc_interface *xch,
+    struct xen_sysctl_rtglobal_schedule *schedule)
+{
+    int rc;
+    DECLARE_DOMCTL; 
+    
+    sysctl.cmd = XEN_SYSCTL_scheduler_op;
+    sysctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTGLOBAL;
+    sysctl.u.scheduler_op.cmd = XEN_SYSCTL_SCHEDOP_putinfo;
+
+    sysctl.u.scheduler_op.u.sched_rtglobal = *schedule;
+    
+    rc = do_sysctl(xch, &sysctl);
+
+    *schedule = sysctl.u.scheduler_op.u.sched_rtglobal;
+    
+    return rc;
+}
+
+int
+xc_sched_rtglobal_params_get(
+    xc_interface *xch,
+    struct xen_sysctl_rtglobal_schedule *schedule)
+{
+    int rc;
+    DECLARE_DOMCTL;
+
+    domctl.cmd = XEN_SYSCTL_scheduler_op;
+    domctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTGLOBAL;
+    domctl.u.scheduler_op.cmd = XEN_SYSCTL_SCHEDOP_putinfo;
+
+    rc = do_domctl(xch, &domctl);
+    if ( rc == 0 )
+        *schedule = sysctl.u.scheduler_op.u.sched_rtglobal;
+
+    return rc;
 }

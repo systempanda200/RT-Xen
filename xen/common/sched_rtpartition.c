@@ -53,8 +53,6 @@
 #define RTPARTITION_DEFAULT_PERIOD     10
 #define RTPARTITION_DEFAULT_BUDGET      4
 
-#define EDF                             0
-#define RM                              1
 
 /*
  * Useful macros

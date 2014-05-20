@@ -205,6 +205,7 @@ static uint32_t find_domain(const char *p)
     return domid;
 }
 
+<<<<<<< HEAD
 int child_report(xlchildnum child)
 {
     int status;
@@ -228,16 +229,21 @@ static void console_child_report(xlchildnum child)
 }
 
 static uint32_t find_alg(const char *p)
+=======
+/*
+static uint32_t find_schedule_scheme(const char *p)
+>>>>>>> xen tool need to fix the compile bugs. libxl_types.idl defines the libxl_ types. my impl of this may be incorrect that cause the compile error
 {
-    if(!strcmp(p, 'EDF')){
-        return XEN_SCHEDULER_RTGLOBAL_EDF;
-    }else if(!strcmp(p, 'RM')){
-        return XEN_SCHEDULER_RTGLOBAL_RM;
+    if(!strcmp(p, "EDF")){
+        return LIBXL_SCHEDULE_SCHEME_EDF;
+    }else if(!strcmp(p, "RM")){
+        return LIBXL_SCHEDULE_SCHEME_RM;
     }else{
         fprintf(stderr, "%s is an invalid schedule policy\n", p);
         exit(2);
     }
 }
+*/
 
 static int vncviewer(uint32_t domid, int autopass)
 {
@@ -5622,7 +5628,7 @@ int main_sched_rtglobal(int argc, char **argv)
         fprintf(stderr, "Must specify a domain.\n");
         return 1;
     }
-    if (!alg && (opt_p || opt_b || opt_v || opt_e || dom || cpupool)){
+    if ( opt_s && (opt_p || opt_b || opt_v || opt_e || dom || cpupool)){
         fprintf{stderr, "Specifying scheduling algorithm is not allowed "
                 "with other options.\n"};
         return 1;
@@ -5634,9 +5640,6 @@ int main_sched_rtglobal(int argc, char **argv)
             rc = sched_rtglobal_params_get(&scparam);
             if ( rc ) {
                 fprintf(stderr, "sched_rtglobal_params_get fails\n");
-            } else {
-                printf("Schedule scheme is %s\n", scparam->schedule_scheme);
-                return 0;
             }
         } else {
             if( !strcmp(schedule_scheme, "EDF") && 
@@ -5648,9 +5651,16 @@ int main_sched_rtglobal(int argc, char **argv)
             rc = sched_rtglobal_params_set(&scparam);
             if ( rc )
                 return -rc;
-
-            printf("Set schedule scheme to %s\n", scparam->schedule_scheme);
         }
+
+        if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_EDF ) {
+            printf("Set schedule scheme to EDF\n");
+        } else if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_RM ) {
+            printf("Set schedule scheme to RM\n");
+        }
+
+        return 0;
+
     } else if (!dom) { /* list all domain's rtglobal scheduler info */
         return -sched_domain_output(LIBXL_SCHEDULER_RTGLOBAL,
                                     sched_rtglobal_domain_output,

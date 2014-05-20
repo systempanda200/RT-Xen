@@ -24,6 +24,7 @@ libxl_hwcap = Builtin("hwcap", passby=PASS_BY_REFERENCE)
 
 MemKB = UInt(64, init_val = "LIBXL_MEMKB_DEFAULT")
 
+
 #
 # Constants / Enumerations
 #
@@ -112,6 +113,12 @@ libxl_tsc_mode = Enumeration("tsc_mode", [
     (1, "always_emulate"),
     (2, "native"),
     (3, "native_paravirt"),
+    ])
+
+# consistent with xen/include/public/domctl.h
+libxl_schedule_scheme = Enumeration("schedule_scheme", [
+    (81, "EDF"),
+    (82, "RM"),
     ])
 
 # Consistent with the values defined for HVM_PARAM_TIMER_MODE.
@@ -288,6 +295,22 @@ libxl_domain_restore_params = Struct("domain_restore_params", [
 
 MemKB = UInt(64, init_val = "LIBXL_MEMKB_DEFAULT")
 
+#
+# libxl_xen_domctl_sched_rtglobal_params is consistent with 
+# xen_domctl_sched_rtglobal_params in xen/include/public/domctl.h
+#
+libxl_vcpu = Struct("vcpus", [
+    ("period",       uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
+    ("budget",       uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("extra",        uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT'}),
+    ])
+
+libxl_xen_domctl_sched_rtglobal_params = Struct("xen_domctl_sched_rtglobal_params",[
+    ("vcpus",        Array(libxl_vcpu, "max_vcpus")),
+    ("num_vcpus",    uint16),
+    ("vcpu_index",   uint16),
+    ])
+
 libxl_domain_sched_params = Struct("domain_sched_params",[
     ("sched",        libxl_scheduler),
     ("weight",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_WEIGHT_DEFAULT'}),
@@ -299,7 +322,7 @@ libxl_domain_sched_params = Struct("domain_sched_params",[
     ("slice",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_SLICE_DEFAULT'}),
     ("latency",      integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT'}),
     ("extratime",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT'}),
-    ("rtglobal", xen_domctl_sched_rtglobal),
+    ("rtglobal",     libxl_xen_domctl_sched_rtglobal_params),
     ])
 
 libxl_domain_build_info = Struct("domain_build_info",[
@@ -567,8 +590,10 @@ libxl_sched_credit_params = Struct("sched_credit_params", [
     ("ratelimit_us", integer),
     ], dispose_fn=None)
 
+# consistent with struct xen_sysctl_rtglobal_schedule 
+# in xen/include/public/sysctl.h
 libxl_sched_rtglobal_params = Struct("sched_rtglobal_params", [
-    ("schedule_scheme", uint16_t),
+    ("schedule_scheme", uint16),
     ], dispose_fn=None)
 
 libxl_domain_remus_info = Struct("domain_remus_info",[

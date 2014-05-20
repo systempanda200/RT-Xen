@@ -795,6 +795,24 @@ int xc_sched_credit2_domain_set(xc_interface *xch,
 int xc_sched_credit2_domain_get(xc_interface *xch,
                                uint32_t domid,
                                struct xen_domctl_sched_credit2 *sdom);
+int xc_sched_rtglobal_domain_set(xc_interface *xch,
+                               uint32_t domid,
+                               struct xen_domctl_sched_rtglobal_params *sdom);
+int xc_sched_rtglobal_domain_get(xc_interface *xch,
+                               uint32_t domid,
+                               struct xen_domctl_sched_rtglobal_params *sdom);
+int xc_sched_rtglobal_params_set(
+                               xc_interface *xch,
+                               struct xen_sysctl_rtglobal_schedule *schedule);
+int xc_sched_rtglobal_params_get(
+                               xc_interface *xch,
+                               struct xen_sysctl_rtglobal_schedule *schedule);
+int xc_sched_rtpartition_domain_set(xc_interface *xch,
+                               uint32_t domid,
+                               struct xen_domctl_sched_rtpartition *sdom);
+int xc_sched_rtpartition_domain_get(xc_interface *xch,
+                               uint32_t domid,
+                               struct xen_domctl_sched_rtpartition *sdom);
 
 int
 xc_sched_arinc653_schedule_set(

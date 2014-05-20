@@ -4963,65 +4963,56 @@ static int sched_rtglobal_domain_get(libxl__gc *gc, uint32_t domid,
 static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
                                     const libxl_domain_sched_params *scinfo)
 {
-    struct xen_domctl_sched_rtglobal sdom;
+    struct xen_domctl_sched_rtglobal_params sdom;
     int rc;
  
     /* set schedule algorithm when domid = -2 */
-    if( domid == -2 ){
-        sdom.alg = scinfo.alg
-        rc = xc_sched_rtglobal_domain_set(CTX->xch, domid, &sdom);  
-        if ( rc < 0 ) {
-            LOGE(ERROR, "setting domain sched rtglobal");
-            return ERROR_FAIL;
-        }
-    }else{
-        rc = xc_sched_rtglobal_domain_get(CTX->xch, domid, &sdom);
-        if (rc != 0) {
-            LOGE(ERROR, "getting domain sched rtglobal");
-            return ERROR_FAIL;
-        }
+    rc = xc_sched_rtglobal_domain_get(CTX->xch, domid, &sdom);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rtglobal");
+        return ERROR_FAIL;
+    }
 
-        if (scinfo->period != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
-            if (scinfo->period < 1 || scinfo->period > 65535) {
-                LOG(ERROR, "Cpu period out of range, "
-                           "valid values are within range from 1 to 65535");
-                return ERROR_INVAL;
-            }
-            sdom.period = scinfo->period;
+    if (scinfo->period != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
+        if (scinfo->period < 1 || scinfo->period > 65535) {
+            LOG(ERROR, "Cpu period out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
         }
+        sdom.period = scinfo->period;
+    }
 
-        if (scinfo->budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
-            if (scinfo->budget < 1 || scinfo->budget > 65535) {
-                LOG(ERROR, "Cpu budget out of range, "
-                           "valid values are within range from 1 to 65535");
-                return ERROR_INVAL;
-            }
-            sdom.budget = scinfo->budget;
+    if (scinfo->budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
+        if (scinfo->budget < 1 || scinfo->budget > 65535) {
+            LOG(ERROR, "Cpu budget out of range, "
+                       "valid values are within range from 1 to 65535");
+            return ERROR_INVAL;
         }
+        sdom.budget = scinfo->budget;
+    }
 
-        if (scinfo->vcpu != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
-            if (scinfo->vcpu < 0 || scinfo->vcpu > 65535) {
-                LOG(ERROR, "Cpu vcpu out of range, "
-                         "valid values are within range from 0 to 65535");
-                return ERROR_INVAL;
-            }
-            sdom.vcpu = scinfo->vcpu;
+    if (scinfo->vcpu != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
+        if (scinfo->vcpu < 0 || scinfo->vcpu > 65535) {
+            LOG(ERROR, "Cpu vcpu out of range, "
+                     "valid values are within range from 0 to 65535");
+            return ERROR_INVAL;
         }
+        sdom.vcpu = scinfo->vcpu;
+    }
 
-        if (scinfo->extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
-            if (scinfo->extra < 0 || scinfo->extra > 65535) {
-                LOG(ERROR, "Cpu extra out of range, "
-                         "valid values are within range from 0 to 65535");
-                return ERROR_INVAL;
-            }
-            sdom.extra = scinfo->extra;
-        }    
-
-        rc = xc_sched_rtglobal_domain_set(CTX->xch, domid, &sdom);
-        if ( rc < 0 ) {
-            LOGE(ERROR, "setting domain sched rtglobal");
-            return ERROR_FAIL;
+    if (scinfo->extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
+        if (scinfo->extra < 0 || scinfo->extra > 65535) {
+            LOG(ERROR, "Cpu extra out of range, "
+                     "valid values are within range from 0 to 65535");
+            return ERROR_INVAL;
         }
+        sdom.extra = scinfo->extra;
+    }    
+
+    rc = xc_sched_rtglobal_domain_set(CTX->xch, domid, &sdom);
+    if ( rc < 0 ) {
+        LOGE(ERROR, "setting domain sched rtglobal");
+        return ERROR_FAIL;
     }
 
     return 0;

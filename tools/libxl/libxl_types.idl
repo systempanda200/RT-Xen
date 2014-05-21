@@ -299,16 +299,22 @@ MemKB = UInt(64, init_val = "LIBXL_MEMKB_DEFAULT")
 # libxl_xen_domctl_sched_rtglobal_params is consistent with 
 # xen_domctl_sched_rtglobal_params in xen/include/public/domctl.h
 #
-libxl_vcpu = Struct("vcpus", [
-    ("period",       uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
-    ("budget",       uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
-    ("extra",        uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT'}),
+#libxl_vcpu = Struct("vcpu",[
+#    ("period",       uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
+#    ("budget",       uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+#    ("extra",        uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT'}),
+#    ])
+libxl_vcpu = Struct("vcpu",[
+    ("period",       uint16),
+    ("budget",       uint16),
+    ("extra",        uint16),
     ])
 
-libxl_xen_domctl_sched_rtglobal_params = Struct("xen_domctl_sched_rtglobal_params",[
+libxl_domain_sched_rtglobal_params = Struct("domain_sched_rtglobal_params",[
+    ("sched",        libxl_scheduler),
     ("vcpus",        Array(libxl_vcpu, "max_vcpus")),
-    ("num_vcpus",    uint16),
-    ("vcpu_index",   uint16),
+    ("num_vcpus",    uint16, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_NUM_VCPUS_DEFAULT'}),
+    ("vcpu_index",   uint16, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_VCPU_INDEX_DEFAULT'}),
     ])
 
 libxl_domain_sched_params = Struct("domain_sched_params",[
@@ -322,7 +328,7 @@ libxl_domain_sched_params = Struct("domain_sched_params",[
     ("slice",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_SLICE_DEFAULT'}),
     ("latency",      integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT'}),
     ("extratime",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT'}),
-    ("rtglobal",     libxl_xen_domctl_sched_rtglobal_params),
+#    ("rtglobal",     libxl_domain_sched_rtglobal_params),
     ])
 
 libxl_domain_build_info = Struct("domain_build_info",[

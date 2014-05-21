@@ -524,7 +524,7 @@ if __name__ == '__main__':
     for ty in types:
         if ty.private:
             continue
-        #sys.stdout.write(" TYPE    %-20s " % ty.rawname)
+        sys.stdout.write(" TYPE    %-20s " % ty.rawname)
         ml.write(gen_ocaml_ml(ty, False))
         ml.write("\n")
 

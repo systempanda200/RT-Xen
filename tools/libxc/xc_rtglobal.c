@@ -111,7 +111,7 @@ xc_sched_rtglobal_params_get(
 
     sysctl.cmd = XEN_SYSCTL_scheduler_op;
     sysctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTGLOBAL;
-    sysctl.u.scheduler_op.cmd = XEN_SYSCTL_SCHEDOP_putinfo;
+    sysctl.u.scheduler_op.cmd = XEN_SYSCTL_SCHEDOP_getinfo;
 
     rc = do_sysctl(xch, &sysctl);
     if ( rc == 0 )

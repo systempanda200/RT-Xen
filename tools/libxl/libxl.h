@@ -1117,9 +1117,13 @@ int libxl_sched_rtglobal_params_set(libxl_ctx *ctx,
 #define LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT   -1
 #define LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT -1
 
-#define LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT    -1
-#define LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT      -1
-#define LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT     -1
+#define LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT     -1
+#define LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT       -1
+#define LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT      -1
+#define LIBXL_DOMAIN_SCHED_PARAM_NUM_VCPUS_DEFAULT  -1
+#define LIBXL_DOMAIN_SCHED_PARAM_VCPU_INDEX_DEFAULT -1
+/* Consistent with XEN_LEGACY_MAX_VCPUS xen/arch-x86/xen.h*/
+#define LIBXL_XEN_LEGACY_MAX_VCPUS                  32 
 
 int libxl_domain_sched_params_get(libxl_ctx *ctx, uint32_t domid,
                                   libxl_domain_sched_params *params);

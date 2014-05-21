@@ -365,6 +365,10 @@ struct xen_domctl_scheduler_op {
             uint16_t weight;
         } credit2;
         struct xen_domctl_sched_rtglobal{
+            uint16_t period; /* for compatibility of sisu's code in xm cmd */
+            uint16_t budget; /* for compatibility of sisu's code in xm cmd */
+            uint16_t extra; /* for compatibility of sisu's code in xm cmd */
+            uint16_t vcpu; /* for compatibility of sisu's code in xm cmd */
             XEN_GUEST_HANDLE_64(xen_domctl_sched_rtglobal_params_t) schedule;
         } rtglobal;
 		struct xen_domctl_sched_rtpartition {

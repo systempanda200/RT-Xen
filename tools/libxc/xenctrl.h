@@ -38,6 +38,7 @@
 #include <xen/domctl.h>
 #include <xen/physdev.h>
 #include <xen/sysctl.h>
+#include <xen/domctl.h>
 #include <xen/version.h>
 #include <xen/event_channel.h>
 #include <xen/sched.h>

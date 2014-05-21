@@ -1666,16 +1666,16 @@ static PyObject *pyxc_sched_rtglobal_domain_set(XcObject *self,
     uint16_t extra = 0;
     static char *kwd_list[] = { "domid", "period", "budget", "vcpu", "extra", NULL };
     static char kwd_type[] = "I|LLhh";
-    struct xen_domctl_sched_rtglobal sdom;
+    struct xen_domctl_sched_rtglobal_params sdom;
 
     if( !PyArg_ParseTupleAndKeywords(args, kwds, kwd_type, kwd_list,
                                      &domid, &period, &budget, &vcpu, &extra) )
         return NULL;
 
-    sdom.period = period;
-    sdom.budget = budget;
-    sdom.vcpu = vcpu;
-    sdom.extra = extra;
+    sdom.vcpu_index = vcpu;
+    sdom.vcpus[vcpu].period = period;
+    sdom.vcpus[vcpu].budget = budget;
+    sdom.vcpus[vcpu].extra = extra;
 
     if ( xc_sched_rtglobal_domain_set(self->xc_handle, domid, &sdom) != 0 )
         return pyxc_error_to_exception(self->xc_handle);
@@ -1687,7 +1687,8 @@ static PyObject *pyxc_sched_rtglobal_domain_set(XcObject *self,
 static PyObject *pyxc_sched_rtglobal_domain_get(XcObject *self, PyObject *args)
 {
     uint32_t domid;
-    struct xen_domctl_sched_rtglobal sdom;
+    uint16_t vcpu_index;
+    struct xen_domctl_sched_rtglobal_params sdom;
 
     if( !PyArg_ParseTuple(args, "I", &domid) )
         return NULL;
@@ -1695,11 +1696,12 @@ static PyObject *pyxc_sched_rtglobal_domain_get(XcObject *self, PyObject *args)
     if ( xc_sched_rtglobal_domain_get(self->xc_handle, domid, &sdom) != 0 )
         return pyxc_error_to_exception(self->xc_handle);
 
+    vcpu_index = sdom.vcpu_index;
     return Py_BuildValue("{s:L,s:L,s:H,s:H}",
-                         "period",  sdom.period,
-                         "budget",  sdom.budget,
-                         "vcpu",    sdom.vcpu,
-                         "extra",   sdom.extra);
+                         "period",  sdom.vcpus[vcpu_index].period,
+                         "budget",  sdom.vcpus[vcpu_index].budget,
+                         "vcpu",    sdom.vcpu_index,
+                         "extra",   sdom.vcpus[vcpu_index].extra);
 }
 
 /* rtpartition */

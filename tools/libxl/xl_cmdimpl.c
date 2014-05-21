@@ -5192,7 +5192,7 @@ static int sched_credit2_domain_output(
 }
 
 //rtglobal
-static int sched_rtglobal_params_set(libxl_sched_credit_params *scinfo)
+static int sched_rtglobal_params_set(libxl_sched_rtglobal_params *scinfo)
 {
     int rc;
 
@@ -5239,6 +5239,7 @@ static int sched_rtglobal_domain_output(
             scinfo.rtglobal.vcpus[i].extra);
     }
     free(domname);
+    free(scinfo.rtglobal.vcpus);
     libxl_domain_sched_params_dispose(&scinfo);
     return 0;
 }
@@ -5575,7 +5576,7 @@ int main_sched_rtglobal(int argc, char **argv)
     int opt_s = 0;
     int period = 10, opt_p = 0;
     int budget = 4, opt_b = 0;
-    int vcpu = 0, opt_v = 0;
+    int vcpu_index = 0, opt_v = 0;
     int extra = 0, opt_e = 0;
     int opt, rc;
     static struct option opts[] = {
@@ -5603,7 +5604,7 @@ int main_sched_rtglobal(int argc, char **argv)
         opt_b = 1;
         break;
     case 'v':
-        vcpu = strtol(optarg, NULL, 10);
+        vcpu_index = strtol(optarg, NULL, 10);
         opt_v = 1;
         break;
     case 'e':
@@ -5628,9 +5629,13 @@ int main_sched_rtglobal(int argc, char **argv)
         fprintf(stderr, "Must specify a domain.\n");
         return 1;
     }
-    if ( opt_s && (opt_p || opt_b || opt_v || opt_e || dom || cpupool)){
-        fprintf{stderr, "Specifying scheduling algorithm is not allowed "
-                "with other options.\n"};
+    if ( opt_s && (opt_p || opt_b || opt_v || opt_e || dom || cpupool)) {
+        fprintf(stderr, "Specifying scheduling algorithm is not allowed "
+                "with other options.\n");
+        return 1;
+    }
+    if ( (opt_p || opt_b) && (!opt_v || !dom) ) {
+        fprintf(stderr, "Must specify a domain and its vcpu index\n");
         return 1;
     }
     
@@ -5674,16 +5679,22 @@ int main_sched_rtglobal(int argc, char **argv)
         } else { /* set rtglobal scheduler paramaters */
             libxl_domain_sched_params scinfo;
             libxl_domain_sched_params_init(&scinfo);
+            scinfo.rtglobal.max_vcpus = LIBXL_XEN_LEGACY_MAX_VCPUS;
+            scinfo.rtglobal.vcpus = 
+                (libxl_vcpu*) malloc( sizeof(libxl_vcpu) * scinfo.rtglobal.max_vcpus );
             scinfo.sched = LIBXL_SCHEDULER_RTGLOBAL;
-            if (opt_p)
-                scinfo.period = period;
-            if (opt_b)
-                scinfo.budget = budget;
+            /* TODO: Change to record the sched scheme */
+            scinfo.rtglobal.sched = LIBXL_SCHEDULER_RTGLOBAL; 
             if (opt_v)
-                scinfo.vcpu = vcpu;
+                scinfo.rtglobal.vcpu_index = vcpu_index;
+            if (opt_p)
+                scinfo.rtglobal.vcpus[vcpu_index].period = period;
+            if (opt_b)
+                scinfo.rtglobal.vcpus[vcpu_index].budget = budget;
             if (opt_e)
-                scinfo.extra = extra;
+                scinfo.rtglobal.vcpus[vcpu_index].extra = extra;
             rc = sched_domain_set(domid, &scinfo);
+            free(scinfo.rtglobal.vcpus);
             libxl_domain_sched_params_dispose(&scinfo);
             if (rc)
                 return -rc;

@@ -328,7 +328,7 @@ libxl_domain_sched_params = Struct("domain_sched_params",[
     ("slice",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_SLICE_DEFAULT'}),
     ("latency",      integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT'}),
     ("extratime",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT'}),
-#    ("rtglobal",     libxl_domain_sched_rtglobal_params),
+    ("rtglobal",     libxl_domain_sched_rtglobal_params),
     ])
 
 libxl_domain_build_info = Struct("domain_build_info",[

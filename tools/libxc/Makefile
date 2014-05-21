@@ -1,4 +1,4 @@
-XEN_ROOT = $(CURDIR)/../..
+EN_ROOT = $(CURDIR)/../..
 include $(XEN_ROOT)/tools/Rules.mk
 
 MAJOR    = 4.4
@@ -20,6 +20,8 @@ CTRL_SRCS-y       += xc_sedf.c
 CTRL_SRCS-y       += xc_csched.c
 CTRL_SRCS-y       += xc_csched2.c
 CTRL_SRCS-y       += xc_arinc653.c
+CTRL_SRCS-y       += xc_rtglobal.c
+CTRL_SRCS-y       += xc_rtpartition.c
 CTRL_SRCS-y       += xc_tbuf.c
 CTRL_SRCS-y       += xc_pm.c
 CTRL_SRCS-y       += xc_cpu_hotplug.c

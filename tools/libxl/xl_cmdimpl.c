@@ -205,7 +205,6 @@ static uint32_t find_domain(const char *p)
     return domid;
 }
 
-<<<<<<< HEAD
 int child_report(xlchildnum child)
 {
     int status;
@@ -228,11 +227,8 @@ static void console_child_report(xlchildnum child)
         child_report(child);
 }
 
-static uint32_t find_alg(const char *p)
-=======
 /*
 static uint32_t find_schedule_scheme(const char *p)
->>>>>>> xen tool need to fix the compile bugs. libxl_types.idl defines the libxl_ types. my impl of this may be incorrect that cause the compile error
 {
     if(!strcmp(p, "EDF")){
         return LIBXL_SCHEDULE_SCHEME_EDF;

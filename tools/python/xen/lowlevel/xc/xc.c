@@ -1655,6 +1655,7 @@ static PyObject *pyxc_sched_credit2_domain_get(XcObject *self, PyObject *args)
 }
 
 /* rtglobal */
+/*
 static PyObject *pyxc_sched_rtglobal_domain_set(XcObject *self,
                                               PyObject *args,
                                               PyObject *kwds)
@@ -1703,8 +1704,9 @@ static PyObject *pyxc_sched_rtglobal_domain_get(XcObject *self, PyObject *args)
                          "vcpu",    sdom.vcpu_index,
                          "extra",   sdom.vcpus[vcpu_index].extra);
 }
-
+*/
 /* rtpartition */
+/*
 static PyObject *pyxc_sched_rtpartition_domain_set(XcObject *self,
                                               PyObject *args,
                                               PyObject *kwds)
@@ -1751,7 +1753,7 @@ static PyObject *pyxc_sched_rtpartition_domain_get(XcObject *self, PyObject *arg
                          "vcpu",    sdom.vcpu,
                          "extra",   sdom.extra);
 }
-
+*/
 static PyObject *pyxc_domain_setmaxmem(XcObject *self, PyObject *args)
 {
     uint32_t dom;

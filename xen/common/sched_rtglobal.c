@@ -991,6 +991,7 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
     struct rtglobal_vcpu * svc = RTGLOBAL_VCPU(vc);
     struct rtglobal_vcpu * snext = NULL;
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
+    spinlock_t *lock = vcpu_schedule_lock_irq(vc);
 
 #ifdef RTXEN_DEBUG
     if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_CONTEXT] < RTXEN_MAX ) {
@@ -1010,7 +1011,7 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
         snext = __runq_pick(ops, prv->cpus);    /* pick snext from ALL cpus */
         runq_tickle(ops, snext);
     }
-    vcpu_schedule_unlock_irq(vc);
+    vcpu_schedule_unlock_irq(lock, vc);
 }
 
 static struct rtglobal_private _rtglobal_priv;

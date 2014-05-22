@@ -227,8 +227,8 @@ static void console_child_report(xlchildnum child)
         child_report(child);
 }
 
-/*
-static uint32_t find_schedule_scheme(const char *p)
+
+static uint16_t find_schedule_scheme(const char *p)
 {
     if(!strcmp(p, "EDF")){
         return LIBXL_SCHEDULE_SCHEME_EDF;
@@ -239,7 +239,6 @@ static uint32_t find_schedule_scheme(const char *p)
         exit(2);
     }
 }
-*/
 
 static int vncviewer(uint32_t domid, int autopass)
 {
@@ -5649,17 +5648,23 @@ int main_sched_rtglobal(int argc, char **argv)
                                 "Only support schedule scheme EDF or RM\n");
             }
 
+            printf("Input schedule scheme from user is: %s\n", schedule_scheme);
+            scparam.schedule_scheme = find_schedule_scheme(schedule_scheme);
             rc = sched_rtglobal_params_set(&scparam);
-            if ( rc )
+            if ( rc ) {
+                fprintf(stderr, "sched_rtglobal_params_set fails\n");
                 return -rc;
+            }
         }
 
         if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_EDF ) {
             printf("Set schedule scheme to EDF\n");
         } else if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_RM ) {
             printf("Set schedule scheme to RM\n");
+        } else {
+            printf("(Set schedule might fail) Set schedule scheme to not EDF or RM\n");
         }
-
+        
         return 0;
 
     } else if (!dom) { /* list all domain's rtglobal scheduler info */

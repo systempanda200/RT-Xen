@@ -552,6 +552,8 @@ rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domc
         }
         local_sched.num_vcpus = vcpu_index;
         copy_to_guest(op->u.rtglobal.schedule, &local_sched, 1);
+        rc = 0;
+        break;
     case XEN_DOMCTL_SCHEDOP_putinfo:
         copy_from_guest(&local_sched, op->u.rtglobal.schedule, 1);
         //sdom->extra = op->u.rtglobal.extra;
@@ -563,6 +565,8 @@ rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domc
                 break;
             }
         }
+        rc = 0;
+        break;
     }
 
     return rc;
@@ -587,9 +591,9 @@ rtglobal_sys_cntl(const struct scheduler *ops,
     {
     case XEN_SYSCTL_SCHEDOP_putinfo:
         prv->priority_scheme = params->priority_scheme;
-        if (prv->priority_scheme == EDF ) {
+        if (prv->priority_scheme == XEN_SCHEDULER_RTGLOBAL_EDF ) {
             printk("Priority scheme changed to EDF\n");
-        } else if ( prv->priority_scheme == RM ) {
+        } else if ( prv->priority_scheme == XEN_SCHEDULER_RTGLOBAL_RM ) {
             printk("Priority scheme changed to RM\n");
         } else {
             goto out;
@@ -603,6 +607,7 @@ rtglobal_sys_cntl(const struct scheduler *ops,
     }
  
     out:
+        printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
     return rc;
 }
 
@@ -663,7 +668,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
 
     delta = now - svc->last_start;
     if ( delta < 0 ) { /*Meng: should always later than last_start, why delta<0 can happen?Confirmed: should not happen*/
-        printk("%s, delta = %ld for ", __func__, delta);
+        printk("%s, possible error! now < last_start; delta = now - last_start = %ld for ", __func__, delta);
         rtglobal_dump_vcpu(svc);
         svc->last_start = now;  /* update last_start */
         svc->cur_budget = 0;
@@ -681,6 +686,7 @@ burn_budgets(const struct scheduler *ops, struct rtglobal_vcpu *svc, s_time_t no
 }
 
 /* RunQ is sorted. Pick first one within cpumask. If no one, return NULL */
+/* Meng: pick next vcpu for this cpu */
 /* lock is grabbed before calling this function */
 static struct rtglobal_vcpu *
 __runq_pick(const struct scheduler *ops, cpumask_t mask)
@@ -704,9 +710,9 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
 
         /* bounce for VMs with id 1 */
         /* Meng: only for experiment. */
-        if ( iter_svc->sdom->dom->domain_id == 1 && iter_svc->vcpu->processor == smp_processor_id() )
+/*        if ( iter_svc->sdom->dom->domain_id == 1 && iter_svc->vcpu->processor == smp_processor_id() )
             continue;
-
+*/
         svc = iter_svc;
         break;
     }
@@ -716,6 +722,7 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
 
 /* lock is grabbed before calling this function */
 /* Meng: use runq_insert() to sort runq based on EDF or RM */
+/* Meng: update vcpus' deadline in runq*/
 static void
 __repl_update(const struct scheduler *ops, s_time_t now)
 {
@@ -833,7 +840,6 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
 
 #ifdef RTXEN_DEBUG
     if ( !is_idle_vcpu(snext->vcpu) && snext->vcpu->domain->domain_id != 0 && rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
-    // if ( rtxen_counter[RTXEN_SCHED] < RTXEN_MAX ) {
         printtime();
         printk(" to : ");
         rtglobal_dump_vcpu(snext);
@@ -991,7 +997,7 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
     struct rtglobal_vcpu * svc = RTGLOBAL_VCPU(vc);
     struct rtglobal_vcpu * snext = NULL;
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
-    spinlock_t *lock = vcpu_schedule_lock_irq(vc);
+    spinlock_t *lock;
 
 #ifdef RTXEN_DEBUG
     if ( vc->domain->domain_id != 0 && rtxen_counter[RTXEN_CONTEXT] < RTXEN_MAX ) {
@@ -1004,7 +1010,7 @@ rtglobal_context_saved(const struct scheduler *ops, struct vcpu *vc)
     clear_bit(__RTGLOBAL_scheduled, &svc->flags);
     if ( is_idle_vcpu(vc) ) return;
 
-    vcpu_schedule_lock_irq(vc);
+    lock = vcpu_schedule_lock_irq(vc);
     if ( test_and_clear_bit(__RTGLOBAL_delayed_runq_add, &svc->flags) && likely(vcpu_runnable(vc)) ) {
         __runq_insert(ops, svc);
         __repl_update(ops, NOW());
@@ -1022,6 +1028,22 @@ const struct scheduler sched_rtglobal_def = {
     .sched_id       = XEN_SCHEDULER_RTGLOBAL,
     .sched_data     = &_rtglobal_priv,
 
+    .init_domain    = rtglobal_dom_init,
+    .destroy_domain = rtglobal_dom_destroy,
+
+    .insert_vcpu    = rtglobal_vcpu_insert, /*vcpu domain*/
+    .remove_vcpu    = rtglobal_vcpu_remove,
+
+    .sleep          = rtglobal_vcpu_sleep,
+    .wake           = rtglobal_vcpu_wake,
+    .yield          = NULL,
+    
+    .adjust         = rtglobal_dom_cntl,
+    .adjust_global  = rtglobal_sys_cntl,
+
+    .pick_cpu       = rtglobal_cpu_pick,
+    .do_schedule    = rtglobal_schedule,
+
     .dump_cpu_state = rtglobal_dump_pcpu,
     .dump_settings  = rtglobal_dump,
     .init           = rtglobal_init,
@@ -1030,22 +1052,10 @@ const struct scheduler sched_rtglobal_def = {
     .free_pdata     = rtglobal_free_pdata,
     .alloc_domdata  = rtglobal_alloc_domdata,
     .free_domdata   = rtglobal_free_domdata,
-    .init_domain    = rtglobal_dom_init,
-    .destroy_domain = rtglobal_dom_destroy,
     .alloc_vdata    = rtglobal_alloc_vdata,
     .free_vdata     = rtglobal_free_vdata,
-    .insert_vcpu    = rtglobal_vcpu_insert, /*vcpu domain*/
-    .remove_vcpu    = rtglobal_vcpu_remove,
 
-    .adjust         = rtglobal_dom_cntl,
-    .adjust_global  = rtglobal_sys_cntl,
-
-    .pick_cpu       = rtglobal_cpu_pick,
-    .do_schedule    = rtglobal_schedule,
-    .sleep          = rtglobal_vcpu_sleep,
-    .wake           = rtglobal_vcpu_wake,
     .context_saved  = rtglobal_context_saved, /* Only need to save for global scheduling */
 
-    .yield          = NULL,
     .migrate        = NULL,
 };

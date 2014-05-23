@@ -591,23 +591,23 @@ rtglobal_sys_cntl(const struct scheduler *ops,
     {
     case XEN_SYSCTL_SCHEDOP_putinfo:
         prv->priority_scheme = params->priority_scheme;
+        rc = 0;
         if (prv->priority_scheme == XEN_SCHEDULER_RTGLOBAL_EDF ) {
             printk("Priority scheme changed to EDF\n");
         } else if ( prv->priority_scheme == XEN_SCHEDULER_RTGLOBAL_RM ) {
             printk("Priority scheme changed to RM\n");
         } else {
-            goto out;
+            printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
+            rc = -EINVAL;
         }
-        rc = 0;
         break;
     case XEN_SYSCTL_SCHEDOP_getinfo:
         params->priority_scheme = prv->priority_scheme;
+        printk("Priority scheme is %d\n", params->priority_scheme);
         rc = 0;
         break;
     }
- 
-    out:
-        printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
+
     return rc;
 }
 

@@ -5219,6 +5219,7 @@ static int sched_rtglobal_domain_output(
         printf("%-33s %4s %6s %6s %4s %5s\n", "Name", "ID", "Period", "Budget", "Vcpu", "Extra");
         return 0;
     }
+    libxl_domain_sched_params_init(&scinfo);
     rc = sched_domain_get(LIBXL_SCHEDULER_RTGLOBAL, domid, &scinfo);
     if (rc)
         return rc;
@@ -5234,7 +5235,6 @@ static int sched_rtglobal_domain_output(
             scinfo.rtglobal.vcpus[i].extra);
     }
     free(domname);
-    free(scinfo.rtglobal.vcpus);
     libxl_domain_sched_params_dispose(&scinfo);
     return 0;
 }
@@ -5580,13 +5580,13 @@ int main_sched_rtglobal(int argc, char **argv)
         {"budget", 1, 0, 'b'},
         {"vcpu", 1, 0, 'v'},
         {"extra", 1, 0, 'e'},
-        {"cpupool", 1, 0, 'c'},
         {"schedule", 1, 0, 's'},
+        {"cpupool", 1, 0, 'c'},
         COMMON_LONG_OPTS,
         {0, 0, 0, 0}
     };
 
-    SWITCH_FOREACH_OPT(opt, "d:p:b:v:e:c:s", opts, "sched-rtglobal", 0) {
+    SWITCH_FOREACH_OPT(opt, "d:p:b:v:e:c:s:h", opts, "sched-rtglobal", 0) {
     case 'd':
         dom = optarg;
         break;
@@ -5612,6 +5612,7 @@ int main_sched_rtglobal(int argc, char **argv)
     case 's':
         schedule_scheme = optarg;
         opt_s = 1;
+        printf("SWITCH_FOREACH_OPT: schedule_scheme is %s = %s\n", schedule_scheme, optarg);
         break;
     }
 
@@ -5622,6 +5623,10 @@ int main_sched_rtglobal(int argc, char **argv)
     }
     if (!dom && (opt_p || opt_b || opt_v || opt_e)) {
         fprintf(stderr, "Must specify a domain.\n");
+        return 1;
+    }
+    if ( (opt_p || opt_b || opt_e) && (opt_p + opt_b + opt_v != 3) ) {
+        fprintf(stderr, "Must specify vcpu, period, budget\n");
         return 1;
     }
     if ( opt_s && (opt_p || opt_b || opt_v || opt_e || dom || cpupool)) {
@@ -5636,7 +5641,7 @@ int main_sched_rtglobal(int argc, char **argv)
     
     if ( opt_s ) {
         libxl_sched_rtglobal_params scparam;
-        if ( !schedule_scheme ) { /* Output schedule scheme */
+        if ( !schedule_scheme || !strcmp(schedule_scheme, "show")) { /* Output schedule scheme */
             rc = sched_rtglobal_params_get(&scparam);
             if ( rc ) {
                 fprintf(stderr, "sched_rtglobal_params_get fails\n");
@@ -5695,7 +5700,6 @@ int main_sched_rtglobal(int argc, char **argv)
             if (opt_e)
                 scinfo.rtglobal.vcpus[vcpu_index].extra = extra;
             rc = sched_domain_set(domid, &scinfo);
-            free(scinfo.rtglobal.vcpus);
             libxl_domain_sched_params_dispose(&scinfo);
             if (rc)
                 return -rc;

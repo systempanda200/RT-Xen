@@ -4944,8 +4944,9 @@ static int sched_rtglobal_domain_get(libxl__gc *gc, uint32_t domid,
     }
 
     libxl_domain_sched_params_init(scinfo);
-    scinfo->rtglobal.sched = LIBXL_SCHEDULER_RTGLOBAL;
-    scinfo->rtglobal.max_vcpus = LIBXL_XEN_LEGACY_MAX_VCPUS; //TODO:change to macro def
+    scinfo->sched = LIBXL_SCHEDULER_RTGLOBAL;
+    scinfo->rtglobal.sched = LIBXL_SCHEDULER_RTGLOBAL; //TODO: SHOULD BE SCHEDULE Policy scheme. Need to add an extra field for sdom
+    scinfo->rtglobal.max_vcpus = LIBXL_XEN_LEGACY_MAX_VCPUS; 
     scinfo->rtglobal.vcpus = (libxl_vcpu *) 
                     malloc( sizeof(libxl_vcpu) * scinfo->rtglobal.max_vcpus );
     if ( !scinfo->rtglobal.vcpus ){
@@ -4957,6 +4958,7 @@ static int sched_rtglobal_domain_get(libxl__gc *gc, uint32_t domid,
     {
         scinfo->rtglobal.vcpus[i].period = sdom.vcpus[i].period;
         scinfo->rtglobal.vcpus[i].budget = sdom.vcpus[i].budget;
+        scinfo->rtglobal.vcpus[i].extra = 0;
 //        scinfo->vcpus[i].extra = sdom.vcpus[i].extra;
     }
     //scinfo->period = sdom.period;
@@ -5045,6 +5047,8 @@ int libxl_sched_rtglobal_params_get(libxl_ctx *ctx,
         return ERROR_FAIL;
     }
 
+//    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "get sched rtglobal policy_scheme is %d\n",
+//               sparam.priority_scheme);
     scinfo->schedule_scheme = sparam.priority_scheme;
 
     return 0;
@@ -5072,6 +5076,8 @@ int libxl_sched_rtglobal_params_set(libxl_ctx *ctx,
     }
 
     scinfo->schedule_scheme = sparam.priority_scheme;
+    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "set sched rtglobal policy_scheme is %d\n",
+               scinfo->schedule_scheme);
     
     return 0;
 }

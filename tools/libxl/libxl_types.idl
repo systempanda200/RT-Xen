@@ -305,16 +305,16 @@ MemKB = UInt(64, init_val = "LIBXL_MEMKB_DEFAULT")
 #    ("extra",        uint16,  {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT'}),
 #    ])
 libxl_vcpu = Struct("vcpu",[
-    ("period",       uint16),
-    ("budget",       uint16),
-    ("extra",        uint16),
+    ("period",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
+    ("budget",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("extra",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT'}),
     ])
 
 libxl_domain_sched_rtglobal_params = Struct("domain_sched_rtglobal_params",[
     ("sched",        libxl_scheduler),
     ("vcpus",        Array(libxl_vcpu, "max_vcpus")),
-    ("num_vcpus",    uint16, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_NUM_VCPUS_DEFAULT'}),
-    ("vcpu_index",   uint16, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_VCPU_INDEX_DEFAULT'}),
+    ("num_vcpus",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_NUM_VCPUS_DEFAULT'}),
+    ("vcpu_index",   integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_VCPU_INDEX_DEFAULT'}),
     ])
 
 libxl_domain_sched_params = Struct("domain_sched_params",[

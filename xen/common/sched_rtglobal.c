@@ -560,6 +560,15 @@ rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domc
         list_for_each( iter, &sdom->vcpu ) {
             struct rtglobal_vcpu * svc = list_entry(iter, struct rtglobal_vcpu, sdom_elem);
             if ( local_sched.vcpu_index == svc->vcpu->vcpu_id ) { /* adjust per VCPU parameter */
+                vcpu_index = local_sched.vcpu_index;
+                if ( vcpu_index < 0 || vcpu_index > XEN_LEGACY_MAX_VCPUS) {
+                    printk("XEN_DOMCTL_SCHEDOP_putinfo: vcpu_index=%d\n",
+                            vcpu_index);
+                }else{
+                    printk("XEN_DOMCTL_SCHEDOP_putinfo: vcpu_index=%d, period=%d, budget=%d\n",
+                            vcpu_index, local_sched.vcpus[vcpu_index].period, 
+                            local_sched.vcpus[vcpu_index].budget);
+                }
                 svc->period = local_sched.vcpus[vcpu_index].period;
                 svc->budget = local_sched.vcpus[vcpu_index].budget;
                 break;
@@ -611,7 +620,7 @@ rtglobal_sys_cntl(const struct scheduler *ops,
     return rc;
 }
 
-/* return a VCPU considering affinity */
+/* return a CPU considering affinity */
 static int
 rtglobal_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
 {
@@ -867,7 +876,7 @@ rtglobal_vcpu_sleep(const struct scheduler *ops, struct vcpu *vc)
     BUG_ON( is_idle_vcpu(vc) );
 
     if ( curr_on_cpu(vc->processor) == vc ) {
-        cpu_raise_softirq(vc->processor, SCHEDULE_SOFTIRQ); /*Meng: where is the handler for this SOFTIRQ?*/
+        cpu_raise_softirq(vc->processor, SCHEDULE_SOFTIRQ); /*Meng:callback of the SCHEDULE_SOFTIRQ is schedule()*/
         return;
     }
 

@@ -5612,10 +5612,14 @@ int main_sched_rtglobal(int argc, char **argv)
     case 's':
         schedule_scheme = optarg;
         opt_s = 1;
-        printf("SWITCH_FOREACH_OPT: schedule_scheme is %s = %s\n", schedule_scheme, optarg);
+       // printf("SWITCH_FOREACH_OPT: schedule_scheme is %s = %s\n", schedule_scheme, optarg);
         break;
     }
 
+    if ( opt_e ) {
+        fprintf(stderr, "-e not supported yet.\n");
+        return 1;
+    }
     if (cpupool && (dom || opt_p || opt_b || opt_v || opt_e)) {
         fprintf(stderr, "Specifying a cpupool is not allowed with other "
                 "options.\n");
@@ -5625,7 +5629,7 @@ int main_sched_rtglobal(int argc, char **argv)
         fprintf(stderr, "Must specify a domain.\n");
         return 1;
     }
-    if ( (opt_p || opt_b || opt_e) && (opt_p + opt_b + opt_v != 3) ) {
+    if ( (opt_v || opt_p || opt_b) && (opt_p + opt_b + opt_v != 3) ) {
         fprintf(stderr, "Must specify vcpu, period, budget\n");
         return 1;
     }
@@ -5663,9 +5667,9 @@ int main_sched_rtglobal(int argc, char **argv)
         }
 
         if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_EDF ) {
-            printf("Set schedule scheme to EDF\n");
+            printf("Schedule scheme is EDF now\n");
         } else if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_RM ) {
-            printf("Set schedule scheme to RM\n");
+            printf("Schedule scheme is RM now\n");
         } else {
             printf("(Set schedule might fail) Set schedule scheme to not EDF or RM\n");
         }
@@ -5688,6 +5692,10 @@ int main_sched_rtglobal(int argc, char **argv)
             scinfo.rtglobal.max_vcpus = LIBXL_XEN_LEGACY_MAX_VCPUS;
             scinfo.rtglobal.vcpus = 
                 (libxl_vcpu*) malloc( sizeof(libxl_vcpu) * scinfo.rtglobal.max_vcpus );
+            if ( scinfo.rtglobal.vcpus == NULL ) {
+                fprintf(stderr, "Alloc memory for scinfo.rtglobal.vcpus fails\n");
+                return 1;
+            }
             scinfo.sched = LIBXL_SCHEDULER_RTGLOBAL;
             /* TODO: Change to record the sched scheme */
             scinfo.rtglobal.sched = LIBXL_SCHEDULER_RTGLOBAL; 
@@ -5699,6 +5707,10 @@ int main_sched_rtglobal(int argc, char **argv)
                 scinfo.rtglobal.vcpus[vcpu_index].budget = budget;
             if (opt_e)
                 scinfo.rtglobal.vcpus[vcpu_index].extra = extra;
+            printf("User input is -d=%d, -v=%d, -p=%d, -b=%d\n", 
+                    domid, scinfo.rtglobal.vcpu_index, 
+                    scinfo.rtglobal.vcpus[vcpu_index].period,
+                    scinfo.rtglobal.vcpus[vcpu_index].budget);
             rc = sched_domain_set(domid, &scinfo);
             libxl_domain_sched_params_dispose(&scinfo);
             if (rc)

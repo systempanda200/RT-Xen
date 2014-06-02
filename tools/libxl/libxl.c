@@ -4973,7 +4973,7 @@ static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
                                     const libxl_domain_sched_params *scinfo)
 {
     struct xen_domctl_sched_rtglobal_params sdom;
-    uint16_t vcpu_index;
+    int vcpu_index;
     int rc;
  
     rc = xc_sched_rtglobal_domain_get(CTX->xch, domid, &sdom);
@@ -4981,30 +4981,7 @@ static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
         LOGE(ERROR, "getting domain sched rtglobal");
         return ERROR_FAIL;
     }
-
-    vcpu_index = scinfo->rtglobal.vcpu_index;
-    if (scinfo->rtglobal.vcpus[vcpu_index].period 
-            != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
-        if (scinfo->rtglobal.vcpus[vcpu_index].period < 1 || 
-                scinfo->rtglobal.vcpus[vcpu_index].period > 65535) {
-            LOG(ERROR, "Cpu period out of range, "
-                       "valid values are within range from 1 to 65535");
-            return ERROR_INVAL;
-        }
-        sdom.vcpus[vcpu_index].period = scinfo->rtglobal.vcpus[vcpu_index].period;
-    }
-
-    if (scinfo->rtglobal.vcpus[vcpu_index].budget 
-            != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
-        if (scinfo->rtglobal.vcpus[vcpu_index].budget < 1 ||
-             scinfo->rtglobal.vcpus[vcpu_index].budget > 65535) {
-            LOG(ERROR, "Cpu budget out of range, "
-                       "valid values are within range from 1 to 65535");
-            return ERROR_INVAL;
-        }
-        sdom.vcpus[vcpu_index].budget = scinfo->rtglobal.vcpus[vcpu_index].budget;
-    }
-
+    
     if (scinfo->rtglobal.vcpu_index 
             != LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT) {
         if (scinfo->rtglobal.vcpu_index < 0 || 
@@ -5014,7 +4991,35 @@ static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
             return ERROR_INVAL;
         }
         sdom.vcpu_index = scinfo->rtglobal.vcpu_index;
+        vcpu_index = scinfo->rtglobal.vcpu_index;
+
+        if (scinfo->rtglobal.vcpus != NULL &&
+            vcpu_index >= 0 &&
+            vcpu_index < scinfo->rtglobal.num_vcpus) {
+            if (scinfo->rtglobal.vcpus[vcpu_index].period 
+                    != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
+                if (scinfo->rtglobal.vcpus[vcpu_index].period < 1 || 
+                        scinfo->rtglobal.vcpus[vcpu_index].period > 65535) {
+                    LOG(ERROR, "Cpu period out of range, "
+                               "valid values are within range from 1 to 65535");
+                    return ERROR_INVAL;
+                }
+                sdom.vcpus[vcpu_index].period = scinfo->rtglobal.vcpus[vcpu_index].period;
+            }
+
+            if (scinfo->rtglobal.vcpus[vcpu_index].budget 
+                    != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
+                if (scinfo->rtglobal.vcpus[vcpu_index].budget < 1 ||
+                     scinfo->rtglobal.vcpus[vcpu_index].budget > 65535) {
+                    LOG(ERROR, "Cpu budget out of range, "
+                               "valid values are within range from 1 to 65535");
+                    return ERROR_INVAL;
+                }
+                sdom.vcpus[vcpu_index].budget = scinfo->rtglobal.vcpus[vcpu_index].budget;
+            }
+        }
     }
+
 
 /*
     if (scinfo->rtglobal->vcpus[vcpu_index].extra != LIBXL_DOMAIN_SCHED_PARAM_EXTRA_DEFAULT) {
@@ -5026,6 +5031,14 @@ static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
         sdom->vcpus[vcpu_index].extra = scinfo->rtglobal->vcpus[vcpu_index].extra;
     }    
 */
+    if (sdom.vcpu_index > 0 && sdom.vcpu_index < sdom.num_vcpus )
+    {
+        LIBXL__LOG(CTX, LIBXL__LOG_INFO, "domid=%d, vcpu=%d, period=%d, budget=%d\n",
+                    domid, sdom.vcpu_index, sdom.vcpus[sdom.vcpu_index].period, 
+                    sdom.vcpus[sdom.vcpu_index].budget);
+    } else {
+        LIBXL__LOG(CTX, LIBXL__LOG_INFO, "domid=%d, vcpu=%d\n", domid, sdom.vcpu_index);
+    }
     rc = xc_sched_rtglobal_domain_set(CTX->xch, domid, &sdom);
     if ( rc < 0 ) {
         LOGE(ERROR, "setting domain sched rtglobal");
@@ -5076,8 +5089,8 @@ int libxl_sched_rtglobal_params_set(libxl_ctx *ctx,
     }
 
     scinfo->schedule_scheme = sparam.priority_scheme;
-    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "set sched rtglobal policy_scheme is %d\n",
-               scinfo->schedule_scheme);
+//    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "set sched rtglobal policy_scheme is %d\n",
+//               scinfo->schedule_scheme);
     
     return 0;
 }

@@ -243,6 +243,7 @@ static void xc_dom_free_all(struct xc_dom_image *dom)
 {
     struct xc_dom_mem *block;
 
+    DOMPRINTF_CALLED(dom->xch);
     while ( (block = dom->memblocks) != NULL )
     {
         dom->memblocks = block->next;
@@ -609,6 +610,7 @@ void xc_dom_unmap_one(struct xc_dom_image *dom, xen_pfn_t pfn)
 
 void xc_dom_unmap_all(struct xc_dom_image *dom)
 {
+    DOMPRINTF_CALLED(dom->xch);
     while ( dom->phys_pages )
         xc_dom_unmap_one(dom, dom->phys_pages->first);
 }

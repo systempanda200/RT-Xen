@@ -5690,6 +5690,8 @@ int main_sched_rtglobal(int argc, char **argv)
             libxl_domain_sched_params scinfo;
             libxl_domain_sched_params_init(&scinfo);
             scinfo.rtglobal.max_vcpus = LIBXL_XEN_LEGACY_MAX_VCPUS;
+             /* TODO: change to the vcpu number of this domain*/
+            scinfo.rtglobal.num_vcpus = LIBXL_XEN_LEGACY_MAX_VCPUS;
             scinfo.rtglobal.vcpus = 
                 (libxl_vcpu*) malloc( sizeof(libxl_vcpu) * scinfo.rtglobal.max_vcpus );
             if ( scinfo.rtglobal.vcpus == NULL ) {

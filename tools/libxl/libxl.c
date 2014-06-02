@@ -5031,7 +5031,7 @@ static int sched_rtglobal_domain_set(libxl__gc *gc, uint32_t domid,
         sdom->vcpus[vcpu_index].extra = scinfo->rtglobal->vcpus[vcpu_index].extra;
     }    
 */
-    if (sdom.vcpu_index > 0 && sdom.vcpu_index < sdom.num_vcpus )
+    if (sdom.vcpu_index >= 0 && sdom.vcpu_index < sdom.num_vcpus )
     {
         LIBXL__LOG(CTX, LIBXL__LOG_INFO, "domid=%d, vcpu=%d, period=%d, budget=%d\n",
                     domid, sdom.vcpu_index, sdom.vcpus[sdom.vcpu_index].period, 

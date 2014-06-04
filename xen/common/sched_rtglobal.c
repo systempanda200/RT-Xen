@@ -161,48 +161,6 @@ __runq_elem(struct list_head *elem)
     return list_entry(elem, struct rtglobal_vcpu, runq_elem);
 }
 
-/* lock is grabbed before calling this function */
-static inline void
-__runq_remove(struct rtglobal_vcpu *svc)
-{
-    if ( __vcpu_on_runq(svc) )
-        list_del_init(&svc->runq_elem);
-}
-
-/* lock is grabbed before calling this function */
-/* How to insert vcpu into runq depends on the scheduling algorithm: EDF or RM*/
-static void
-__runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
-{
-    struct list_head *runq = RUNQ(ops);
-    struct list_head *iter;
-	struct rtglobal_private *prv = RTGLOBAL_PRIV(ops);
-    ASSERT( spin_is_locked(per_cpu(schedule_data, svc->vcpu->processor).schedule_lock) );
-
-    if ( __vcpu_on_runq(svc) )
-        return;
-
-    list_for_each(iter, runq) {
-        struct rtglobal_vcpu * iter_svc = __runq_elem(iter);
-
-		if ( svc->cur_budget > 0 ) { // svc still has budget
-			if ( iter_svc->cur_budget == 0 ||
-			     ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
-			       ( prv->priority_scheme == RM && svc->period <= iter_svc->period )) ) {
-					break;
-			}
-		} else { // svc has no budget
-			if ( iter_svc->cur_budget == 0 &&
-			     ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
-			       ( prv->priority_scheme == RM && svc->period <= iter_svc->period )) ) {
-					break;
-			}
-		}
-    }
-
-    list_add_tail(&svc->runq_elem, iter);
-}
-
 /*
  * Debug related code, dump vcpu/pcpu
  */
@@ -230,6 +188,62 @@ rtglobal_dump_vcpu(struct rtglobal_vcpu *svc)
             // cpustr);
 // #undef cpustr
 }
+
+/* lock is grabbed before calling this function */
+static inline void
+__runq_remove(struct rtglobal_vcpu *svc)
+{
+    if ( __vcpu_on_runq(svc) )
+        list_del_init(&svc->runq_elem);
+}
+
+/* lock is grabbed before calling this function */
+/* How to insert vcpu into runq depends on the scheduling algorithm: EDF or RM*/
+static void
+__runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
+{
+    struct list_head *runq = RUNQ(ops);
+    struct list_head *iter;
+	struct rtglobal_private *prv = RTGLOBAL_PRIV(ops);
+    /* Meng? should use global lock? */
+    ASSERT( spin_is_locked(per_cpu(schedule_data, svc->vcpu->processor).schedule_lock) );
+
+    if ( __vcpu_on_runq(svc) )
+        return;
+    
+    printk("__runq_insert: to insert vcpu\n");
+    rtglobal_dump_vcpu(svc);
+    printk("__runq_insert: before list_for_each()\n");
+    list_for_each(iter, runq) {
+        struct rtglobal_vcpu * iter_svc = __runq_elem(iter);
+        
+        printk("__runq_insert: check runq's vcpu\n");
+        rtglobal_dump_vcpu(iter_svc);
+		if ( svc->cur_budget > 0 ) { // svc still has budget
+			if ( iter_svc->cur_budget == 0 ||
+			     ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
+			       ( prv->priority_scheme == RM && svc->period <= iter_svc->period )) ) {
+					break;
+			}
+		} else { // svc has no budget
+			if ( iter_svc->cur_budget == 0 &&
+			     ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
+			       ( prv->priority_scheme == RM && svc->period <= iter_svc->period )) ) {
+					break;
+			}
+		}
+    }
+    
+    printk("__runq_insert: to insert into runq before this vcpu\n");
+    if( iter == runq ) {
+        printk("__runq_insert: first vcpu added to runq!\n");
+    } else {
+        rtglobal_dump_vcpu(__runq_elem(iter));
+    }
+    list_add_tail(&svc->runq_elem, iter);
+}
+
+
 
 static void
 rtglobal_dump_pcpu(const struct scheduler *ops, int cpu)
@@ -284,6 +298,47 @@ rtglobal_dump(const struct scheduler *ops)
     }
 
     printk("\n");
+}
+
+/*
+ * Resort the runq when switch the priority scheme
+ */
+static void
+__runq_resort(const struct scheduler *ops)
+{
+    struct list_head *runq = RUNQ(ops);
+    struct list_head runq_tmp;
+    struct list_head *iter;
+	//struct rtglobal_private *prv = RTGLOBAL_PRIV(ops);
+    //unsigned long flags;
+    spinlock_t *lock;
+    int cpu = smp_processor_id();
+
+    printk("__runq_resort is called\n");
+    //add lock here!
+    //spin_lock_irqsave(&prv->lock, flags);
+    lock = pcpu_schedule_lock_irq(cpu); 
+
+    printk("__runq_resort, clear the runq now.\n");
+    INIT_LIST_HEAD(&runq_tmp);
+    runq_tmp = *runq;
+    INIT_LIST_HEAD(runq);
+
+    //for debug
+    rtglobal_dump(ops);
+    printk("__runq_resort, runq has been cleared");    
+
+    printk("__runq_resort, re-insert iter to prv->runq\n");
+    list_for_each(iter, &runq_tmp) {
+        ASSERT( iter != &runq_tmp );
+        __runq_insert(ops, __runq_elem(iter));
+    }
+
+    //spin_unlock_irqrestore(&prv->lock, flags);
+    pcpu_schedule_unlock_irq(lock, cpu);
+    //for debug
+    printk("__runq_resort, have re-insert into the runq now.\n");
+    rtglobal_dump(ops);
 }
 
 /*
@@ -521,16 +576,22 @@ rtglobal_vcpu_remove(const struct scheduler *ops, struct vcpu *vc)
  * Meng: This is for xen tool scheduler operation! Need to rewrite to privide more functions
  * Return each vcpu's info
  */
-/* do we need the lock here? */
+/* do we need the lock here? Yes! */
 static int
 rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domctl_scheduler_op *op)
 {
     xen_domctl_sched_rtglobal_params_t local_sched;
     struct rtglobal_dom * const sdom = RTGLOBAL_DOM(d);
+    //struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
     struct list_head *iter;
     int vcpu_index = 0;
+    //unsigned long flags;
     int rc = -EINVAL;
-    
+
+    /* Must hold rtglobal_priv lock to read and update sdom,
+     * runq lock to update rtglobal vcs. */
+   // spin_lock_irqsave(&prv->lock, flags);
+
     switch ( op->cmd )
     {
     case XEN_DOMCTL_SCHEDOP_getinfo:
@@ -544,10 +605,16 @@ rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domc
         local_sched.num_vcpus = 0;
         list_for_each( iter, &sdom->vcpu ) {
             struct rtglobal_vcpu * svc = list_entry(iter, struct rtglobal_vcpu, sdom_elem);
+           // spinlock_t *lock = vcpu_schedule_lock(svc->vcpu);
+
             ASSERT(vcpu_index < XEN_LEGACY_MAX_VCPUS);
+            /* NB: Locking order is important here. refer credit2 for more info */
             local_sched.vcpus[vcpu_index].budget = svc->budget;
             local_sched.vcpus[vcpu_index].period = svc->period;
             local_sched.vcpus[vcpu_index].extra = 0;
+
+           // vcpu_schedule_unlock(lock, svc->vcpu);
+
             vcpu_index++;
         }
         local_sched.num_vcpus = vcpu_index;
@@ -559,8 +626,12 @@ rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domc
         //sdom->extra = op->u.rtglobal.extra;
         list_for_each( iter, &sdom->vcpu ) {
             struct rtglobal_vcpu * svc = list_entry(iter, struct rtglobal_vcpu, sdom_elem);
+            /* NB: Locking order is important here. */
+            //spinlock_t *lock = vcpu_schedule_lock(svc->vcpu);
+
             if ( local_sched.vcpu_index == svc->vcpu->vcpu_id ) { /* adjust per VCPU parameter */
                 vcpu_index = local_sched.vcpu_index;
+
                 if ( vcpu_index < 0 || vcpu_index > XEN_LEGACY_MAX_VCPUS) {
                     printk("XEN_DOMCTL_SCHEDOP_putinfo: vcpu_index=%d\n",
                             vcpu_index);
@@ -569,14 +640,20 @@ rtglobal_dom_cntl(const struct scheduler *ops, struct domain *d, struct xen_domc
                             vcpu_index, local_sched.vcpus[vcpu_index].period, 
                             local_sched.vcpus[vcpu_index].budget);
                 }
+
                 svc->period = local_sched.vcpus[vcpu_index].period;
                 svc->budget = local_sched.vcpus[vcpu_index].budget;
+
+               // vcpu_schedule_unlock(lock, svc->vcpu);
+
                 break;
             }
         }
         rc = 0;
         break;
     }
+
+   // spin_unlock_irqrestore(&prv->lock, flags);
 
     return rc;
 }
@@ -599,21 +676,29 @@ rtglobal_sys_cntl(const struct scheduler *ops,
     switch( sc->cmd )
     {
     case XEN_SYSCTL_SCHEDOP_putinfo:
-        prv->priority_scheme = params->priority_scheme;
-        rc = 0;
-        if (prv->priority_scheme == XEN_SCHEDULER_RTGLOBAL_EDF ) {
+        if (params->priority_scheme == XEN_SCHEDULER_RTGLOBAL_EDF ) {
             printk("Priority scheme changed to EDF\n");
-        } else if ( prv->priority_scheme == XEN_SCHEDULER_RTGLOBAL_RM ) {
+        } else if ( params->priority_scheme == XEN_SCHEDULER_RTGLOBAL_RM ) {
             printk("Priority scheme changed to RM\n");
         } else {
             printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
             rc = -EINVAL;
         }
+        if (prv->priority_scheme != params->priority_scheme)
+        {
+            __runq_resort(ops);
+        }
+        prv->priority_scheme = params->priority_scheme;
+        rc = 0;
         break;
     case XEN_SYSCTL_SCHEDOP_getinfo:
         params->priority_scheme = prv->priority_scheme;
         printk("Priority scheme is %d\n", params->priority_scheme);
         rc = 0;
+        break;
+    default:
+        printk("sc->cmd: no such cmd %d\n", sc->cmd);
+        rc = -EINVAL;
         break;
     }
 

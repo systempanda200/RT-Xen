@@ -302,7 +302,9 @@ rtglobal_dump(const struct scheduler *ops)
 
 /*
  * Resort the runq when switch the priority scheme
+ * TODO: CAUSE FATAL PAGE FAULT BUG
  */
+/*
 static void
 __runq_resort(const struct scheduler *ops)
 {
@@ -340,6 +342,7 @@ __runq_resort(const struct scheduler *ops)
     printk("__runq_resort, have re-insert into the runq now.\n");
     rtglobal_dump(ops);
 }
+*/
 
 /*
  * Init/Free related code
@@ -684,10 +687,12 @@ rtglobal_sys_cntl(const struct scheduler *ops,
             printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
             rc = -EINVAL;
         }
+        /*
         if (prv->priority_scheme != params->priority_scheme)
         {
             __runq_resort(ops);
         }
+        */
         prv->priority_scheme = params->priority_scheme;
         rc = 0;
         break;

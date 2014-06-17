@@ -261,27 +261,6 @@ struct cmd_spec cmd_table[] = {
       "-w WEIGHT, --weight=WEIGHT     Weight (int)\n"
       "-p CPUPOOL, --cpupool=CPUPOOL  Restrict output to CPUPOOL"
     },
-    { "sched-rtglobal",
-      &main_sched_rtglobal, 0, 1,
-      "Get/set rtglobal scheduler parameters",
-      "[-d <Domain> [-w[=WEIGHT]]] [-p CPUPOOL] [-s <ALG>]",
-      "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
-      "-p PERIOD, --period=PERIOD     Period (int)\n"
-      "-b BUDGET, --budget=BUDGET     Budget (int)\n"
-      "-v VCPU,   --vcpu=VCPU         Vcpu (int)\n"
-      "-e EXTRA,  --extra=EXTRA       Extra (int)\n"
-      "-s ALG,    --schedule=ALG      Real time algorithm (EDF/RM)\n"
-    },
-    { "sched-rtpartition",
-      &main_sched_rtpartition, 0, 1,
-      "Get/set rtpartition scheduler parameters",
-      "[-d <Domain> [-w[=WEIGHT]]] [-p CPUPOOL]",
-      "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
-      "-p PERIOD, --period=PERIOD     Period (int)\n"
-      "-b BUDGET, --budget=BUDGET     Budget (int)\n"
-      "-v VCPU,   --vcpu=VCPU         Vcpu (int)\n"
-      "-e EXTRA,  --extra=EXTRA       Extra (int)\n"
-    },
     { "sched-sedf",
       &main_sched_sedf, 0, 1,
       "Get/set sedf scheduler parameters",
@@ -297,6 +276,16 @@ struct cmd_spec cmd_table[] = {
       "-w FLOAT, --weight=FLOAT       CPU Period/slice (do not set with\n"
       "                               --period/--slice)\n"
       "-c CPUPOOL, --cpupool=CPUPOOL  Restrict output to CPUPOOL"
+    },
+    { "sched-rtglobal",
+      &main_sched_rtglobal, 0, 1,
+      "Get/set rtglobal scheduler parameters",
+      "[-d <Domain> [-v[=VCPU]] [-p[=PERIOD]] [-b[=BUDGET]]] [-s <ALG>]",
+      "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
+      "-p PERIOD, --period=PERIOD     Period (int)\n"
+      "-b BUDGET, --budget=BUDGET     Budget (int)\n"
+      "-v VCPU,   --vcpu=VCPU         Vcpu (int)\n"
+      "-s ALG,    --schedule=ALG      Real time algorithm (EDF/RM)\n"
     },
     { "domid",
       &main_domid, 0, 0,

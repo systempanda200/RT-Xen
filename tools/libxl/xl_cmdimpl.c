@@ -5554,14 +5554,12 @@ int main_sched_credit2(int argc, char **argv)
     return 0;
 }
 
-/**
- * TODO: FINISH the comment
- * <nothing>        : list all domain paramters and sched params
- * -d [domid]       : list domain params for domain
- * -d []
- *
- *
- *
+/*
+ * <nothing>            : List all domain paramters and sched params
+ * -d [domid]           : List domain params for domain
+ * -d [domid] [params]  : Set domain params for domain 
+ * -s show              : List sched priority scheme
+ * -s [params]          : Set sched priority scheme
  */
 int main_sched_rtglobal(int argc, char **argv)
 {

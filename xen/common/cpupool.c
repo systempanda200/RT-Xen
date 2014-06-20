@@ -35,7 +35,12 @@ static DEFINE_SPINLOCK(cpupool_lock);
 
 DEFINE_PER_CPU(struct cpupool *, cpupool);
 
+#define RTXEN_DEBUG
+#ifdef RTXEN_DEBUG
+#define cpupool_dprintk(x...) printk(x)
+#else
 #define cpupool_dprintk(x...) ((void)0)
+#endif
 
 static struct cpupool *alloc_cpupool_struct(void)
 {

@@ -5239,6 +5239,16 @@ static int sched_rtglobal_domain_output(
     return 0;
 }
 
+static int sched_rtglobal_pool_output(uint32_t poolid)
+{
+    char *poolname;
+
+    poolname = libxl_cpupoolid_to_name(ctx, poolid);
+    printf("Cpupool %s: sched=EDF\n", poolname);
+
+    free(poolname);
+    return 0;
+}
 // rtpartition
 static int sched_rtpartition_domain_output(
     int domid)
@@ -5631,9 +5641,9 @@ int main_sched_rtglobal(int argc, char **argv)
         fprintf(stderr, "Must specify vcpu, period, budget\n");
         return 1;
     }
-    if ( opt_s && (opt_p || opt_b || opt_v || opt_e || dom || cpupool)) {
+    if ( opt_s && (opt_p || opt_b || opt_v || opt_e || dom)) {
         fprintf(stderr, "Specifying scheduling algorithm is not allowed "
-                "with other options.\n");
+                "with other options except for the cpupool option.\n");
         return 1;
     }
     if ( (opt_p || opt_b) && (!opt_v || !dom) ) {
@@ -5677,7 +5687,7 @@ int main_sched_rtglobal(int argc, char **argv)
     } else if (!dom) { /* list all domain's rtglobal scheduler info */
         return -sched_domain_output(LIBXL_SCHEDULER_RTGLOBAL,
                                     sched_rtglobal_domain_output,
-                                    sched_default_pool_output,
+                                    sched_rtglobal_pool_output,
                                     cpupool);
     } else {
         uint32_t domid = find_domain(dom);

@@ -171,9 +171,9 @@ rtglobal_dump_vcpu(struct rtglobal_vcpu *svc)
         printk("NULL!\n");
         return;
     }
-// #define cpustr keyhandler_scratch
-    // cpumask_scnprintf(cpustr, sizeof(cpustr), svc->vcpu->cpu_affinity);
-    printk("[%5d.%-2d] cpu %d, (%-2d, %-2d), cur_b=%ld cur_d=%lu last_start=%lu onR=%d runnable=%d\n",
+#define cpustr keyhandler_scratch
+    cpumask_scnprintf(cpustr, sizeof(cpustr), svc->vcpu->cpu_affinity);
+    printk("[%5d.%-2d] cpu %d, (%-2d, %-2d), cur_b=%ld cur_d=%lu last_start=%lu onR=%d runnable=%d cpu_affinity=%s ",
         // , affinity=%s\n",
             svc->vcpu->domain->domain_id,
             svc->vcpu->vcpu_id,
@@ -184,9 +184,11 @@ rtglobal_dump_vcpu(struct rtglobal_vcpu *svc)
             svc->cur_deadline,
             svc->last_start,
             __vcpu_on_runq(svc),
-            vcpu_runnable(svc->vcpu));
-            // cpustr);
-// #undef cpustr
+            vcpu_runnable(svc->vcpu),
+            cpustr);
+    cpumask_scnprintf(cpustr, sizeof(cpustr), cpupool_scheduler_cpumask(svc->vcpu->domain->cpupool));
+    printk("cpupool=%s\n", cpustr);
+#undef cpustr
 }
 
 /* lock is grabbed before calling this function */
@@ -211,14 +213,14 @@ __runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
     if ( __vcpu_on_runq(svc) )
         return;
     
-    printk("__runq_insert: to insert vcpu\n");
-    rtglobal_dump_vcpu(svc);
-    printk("__runq_insert: before list_for_each()\n");
+//    printk("__runq_insert: to insert vcpu\n");
+//    rtglobal_dump_vcpu(svc);
+//    printk("__runq_insert: before list_for_each()\n");
     list_for_each(iter, runq) {
         struct rtglobal_vcpu * iter_svc = __runq_elem(iter);
         
-        printk("__runq_insert: check runq's vcpu\n");
-        rtglobal_dump_vcpu(iter_svc);
+//        printk("__runq_insert: check runq's vcpu\n");
+//        rtglobal_dump_vcpu(iter_svc);
 		if ( svc->cur_budget > 0 ) { // svc still has budget
 			if ( iter_svc->cur_budget == 0 ||
 			     ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
@@ -234,12 +236,12 @@ __runq_insert(const struct scheduler *ops, struct rtglobal_vcpu *svc)
 		}
     }
     
-    printk("__runq_insert: to insert into runq before this vcpu\n");
-    if( iter == runq ) {
-        printk("__runq_insert: first vcpu added to runq!\n");
-    } else {
-        rtglobal_dump_vcpu(__runq_elem(iter));
-    }
+//    printk("__runq_insert: to insert into runq before this vcpu\n");
+//    if( iter == runq ) {
+//        printk("__runq_insert: first vcpu added to runq!\n");
+//    } else {
+//        rtglobal_dump_vcpu(__runq_elem(iter));
+//    }
     list_add_tail(&svc->runq_elem, iter);
 }
 
@@ -403,7 +405,7 @@ rtglobal_alloc_pdata(const struct scheduler *ops, int cpu)
     per_cpu(schedule_data, cpu).schedule_lock = &prv->lock;
 
     printtime();
-    printk("total cpus: %d", cpumask_weight(&prv->cpus));
+    printk("%s total cpus: %d", __FUNCTION__, cpumask_weight(&prv->cpus));
     return (void *)1;
 }
 
@@ -413,7 +415,7 @@ rtglobal_free_pdata(const struct scheduler *ops, void *pcpu, int cpu)
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
     cpumask_clear_cpu(cpu, &prv->cpus); /*Meng: why clear mask for free_pdata?*/
     printtime();
-    printk("cpu=%d\n", cpu);
+    printk("%s cpu=%d\n", __FUNCTION__, cpu );
 }
 
 static void *
@@ -715,11 +717,13 @@ static int
 rtglobal_cpu_pick(const struct scheduler *ops, struct vcpu *vc)
 {
     cpumask_t cpus;
+    cpumask_t *online;
     int cpu;
     struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
 
-    cpumask_copy(&cpus, vc->cpu_affinity);
-    cpumask_and(&cpus, &prv->cpus, &cpus);
+    online = cpupool_scheduler_cpumask(vc->domain->cpupool);
+    cpumask_and(&cpus, &prv->cpus, online);
+    cpumask_and(&cpus, &cpus, vc->cpu_affinity);
 
     cpu = cpumask_test_cpu(vc->processor, &cpus)
             ? vc->processor 
@@ -795,11 +799,16 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
     struct rtglobal_vcpu *svc = NULL;
     struct rtglobal_vcpu *iter_svc = NULL;
     cpumask_t cpu_common;
+    cpumask_t *online;
+    struct rtglobal_private * prv = RTGLOBAL_PRIV(ops);
 
     list_for_each(iter, runq) {
         iter_svc = __runq_elem(iter);
 
-        cpumask_copy(&cpu_common, iter_svc->vcpu->cpu_affinity);
+        /* mask must be in intersection of cpu_affinity and cpupool of this vcpu and priv->cpus*/
+        online = cpupool_scheduler_cpumask(iter_svc->vcpu->domain->cpupool);
+        cpumask_and(&cpu_common, online, &prv->cpus);
+        cpumask_and(&cpu_common, &cpu_common, iter_svc->vcpu->cpu_affinity);
         cpumask_and(&cpu_common, &mask, &cpu_common);
         if ( cpumask_empty(&cpu_common) )
             continue;
@@ -815,7 +824,7 @@ __runq_pick(const struct scheduler *ops, cpumask_t mask)
         svc = iter_svc;
         break;
     }
-
+    
     return svc;
 }
 
@@ -1001,10 +1010,13 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
     struct vcpu * iter_vc;
     int cpu = 0;
     cpumask_t not_tickled;                  /* not tickled cpus */
+    cpumask_t *online;
 
     if ( new == NULL || is_idle_vcpu(new->vcpu) ) return;
 
-    cpumask_copy(&not_tickled, new->vcpu->cpu_affinity);
+    online = cpupool_scheduler_cpumask(new->vcpu->domain->cpupool);
+    cpumask_and(&not_tickled, online, &prv->cpus);
+    cpumask_and(&not_tickled, &not_tickled, new->vcpu->cpu_affinity);
     cpumask_andnot(&not_tickled, &not_tickled, &prv->tickled);
 
     /* 1) if new vcpu's previous cpu is idle, kick it for cache benefit */
@@ -1083,7 +1095,7 @@ rtglobal_vcpu_wake(const struct scheduler *ops, struct vcpu *vc)
 
     __runq_insert(ops, svc);
     __repl_update(ops, now);
-    snext = __runq_pick(ops, prv->cpus);    /* pick snext from ALL cpus */
+    snext = __runq_pick(ops, prv->cpus);    /* pick snext from ALL valid cpus */
     runq_tickle(ops, snext);
 
     return;

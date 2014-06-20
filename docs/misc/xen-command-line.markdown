@@ -46,8 +46,9 @@ undefined.
 
 ### Size (`<size>`)
 
-A size parameter may be any integer, with a size suffix
+A size parameter may be any integer, with a single size suffix
 
+* `T` or `t`: TiB (2^40)
 * `G` or `g`: GiB (2^30)
 * `M` or `m`: MiB (2^20)
 * `K` or `k`: KiB (2^10)
@@ -197,6 +198,16 @@ Scrub free RAM during boot.  This is a safety feature to prevent
 accidentally leaking sensitive VM data into other VMs if Xen crashes
 and reboots.
 
+### `bootscrub_chunk`
+> `= <size>`
+
+> Default: `128M`
+
+Maximum RAM block size chunks to be scrubbed whilst holding the page heap lock
+and not running softirqs. Reduce this if softirqs are not being run frequently
+enough. Setting this to a high value may cause boot failure, particularly if
+the NMI watchdog is also enabled.
+
 ### cachesize
 > `= <size>`
 
@@ -322,11 +333,16 @@ If set, force use of the performance counters for oprofile, rather than detectin
 available support.
 
 ### cpufreq
-> `= dom0-kernel | none | xen`
+> `= dom0-kernel | none | xen[,[powersave|performance|ondemand|userspace][,<maxfreq>][,[<minfreq>][,[verbose]]]]`
 
 > Default: `xen`
 
 Indicate where the responsibility for driving power states lies.
+
+* Default governor policy is ondemand.
+* `<maxfreq>` and `<minfreq>` are integers which represent max and min processor frequencies
+  respectively.
+* `verbose` option can be included as a string or also as `verbose=<integer>`
 
 ### cpuid\_mask\_cpu (AMD only)
 > `= fam_0f_rev_c | fam_0f_rev_d | fam_0f_rev_e | fam_0f_rev_f | fam_0f_rev_g | fam_10_rev_b | fam_10_rev_c | fam_11_rev_b`
@@ -493,6 +509,13 @@ Practices](http://wiki.xen.org/wiki/Xen_Best_Practices#Xen_dom0_dedicated_memory
 > Default: `false`
 
 Pin dom0 vcpus to their respective pcpus
+
+### dom0pvh
+> `= <boolean>`
+
+> Default: `false`
+
+Flag that makes a 64bit dom0 boot in PVH mode. No 32bit support at present.
 
 ### e820-mtrr-clip
 > `= <boolean>`

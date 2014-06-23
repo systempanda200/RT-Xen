@@ -277,6 +277,15 @@ struct cmd_spec cmd_table[] = {
       "                               --period/--slice)\n"
       "-c CPUPOOL, --cpupool=CPUPOOL  Restrict output to CPUPOOL"
     },
+    { "sched-rt",
+      &main_sched_rt, 0, 1,
+      "Get/set rt scheduler parameters",
+      "[-d <Domain> [-v[=VCPU]] [-p[=PERIOD]] [-b[=BUDGET]]]",
+      "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
+      "-v VCPU,   --vcpu=VCPU         VCPU\n"
+      "-p PERIOD, --period=PERIOD     Period (us)\n"
+      "-b BUDGET, --budget=BUDGET     Budget (us)\n"
+    },
     { "domid",
       &main_domid, 0, 0,
       "Convert a domain name to domain id",

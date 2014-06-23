@@ -1019,6 +1019,46 @@ Restrict output to domains in the specified cpupool.
 
 =back
 
+=item B<sched-rt> [I<OPTIONS>]
+
+Set or get rt (Real Time) scheduler parameters. This rt scheduler applies 
+Preemptive Global Earliest Deadline First real-time scheduling algorithm to 
+schedule VCPUs in the system. Each VCPU has a dedicated period and budget.
+While scheduled, a VCPU burns its budget. 
+A VCPU has its budget replenished at the beginning of each of its periods;
+The VCPU discards its unused budget at the end of its periods.
+
+B<OPTIONS>
+
+=over 4
+
+=item B<-d DOMAIN>, B<--domain=DOMAIN>
+
+Specify domain for which scheduler parameters are to be modified or retrieved.
+Mandatory for modifying scheduler parameters.
+
+=item B<-v VCPU>, B<--vcpu=VCPU>
+
+Specify the index of VCPU whose parameters will be set. 
+A domain can have multiple VCPUs; Each VCPU has a unique index in this domain;
+When set domain's parameters, it needs to set each VCPU's parameters of this 
+domain.
+
+=item B<-p PERIOD>, B<--period=PERIOD>
+
+A VCPU replenish its budget in every period. Time unit is millisecond.
+
+=item B<-b BUDGET>, B<--budget=BUDGET>
+
+A VCPU has BUDGET amount of time to run for each period. 
+Time unit is millisecond.
+
+=item B<-c CPUPOOL>, B<--cpupool=CPUPOOL>
+
+Restrict output to domains in the specified cpupool.
+
+=back
+
 =back
 
 =head1 CPUPOOLS COMMANDS

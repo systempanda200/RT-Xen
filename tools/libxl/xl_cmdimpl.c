@@ -5100,6 +5100,52 @@ static int sched_sedf_domain_output(
     return 0;
 }
 
+
+static int sched_rt_domain_output(
+    int domid)
+{
+    char *domname;
+    libxl_domain_sched_params scinfo;
+    int rc = 0, i;
+
+    if (domid < 0) {
+        printf("%-33s %4s %4s %9s %9s\n", "Name", "ID", "VCPU", "Period", "Budget");
+        return 0;
+    }
+
+    libxl_domain_sched_params_init(&scinfo);
+    rc = sched_domain_get(LIBXL_SCHEDULER_RT, domid, &scinfo);
+    if (rc)
+        goto out;
+
+    domname = libxl_domid_to_name(ctx, domid);
+    for( i = 0; i < scinfo.rt.num_vcpus; i++ )
+    {
+        printf("%-33s %4d %4d %9"PRIu64" %9"PRIu64"\n",
+            domname,
+            domid,
+            scinfo.rt.vcpus[i].index,
+            scinfo.rt.vcpus[i].period,
+            scinfo.rt.vcpus[i].budget);
+    }
+    free(domname);
+
+out:
+    libxl_domain_sched_params_dispose(&scinfo);
+    return rc;
+}
+
+static int sched_rt_pool_output(uint32_t poolid)
+{
+    char *poolname;
+
+    poolname = libxl_cpupoolid_to_name(ctx, poolid);
+    printf("Cpupool %s: sched=EDF\n", poolname);
+
+    free(poolname);
+    return 0;
+}
+
 static int sched_default_pool_output(uint32_t poolid)
 {
     char *poolname;
@@ -5457,6 +5503,91 @@ int main_sched_sedf(int argc, char **argv)
                 scinfo.period = 0;
                 scinfo.slice = 0;
             }
+            rc = sched_domain_set(domid, &scinfo);
+            libxl_domain_sched_params_dispose(&scinfo);
+            if (rc)
+                return -rc;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * <nothing>            : List all domain paramters and sched params
+ * -d [domid]           : List domain params for domain
+ * -d [domid] [params]  : Set domain params for domain 
+ */
+int main_sched_rt(int argc, char **argv)
+{
+    const char *dom = NULL;
+    const char *cpupool = NULL;
+    int period = 10, opt_p = 0;
+    int budget = 4, opt_b = 0;
+    int vcpu_index = 0, opt_v = 0;
+    int opt, rc;
+    static struct option opts[] = {
+        {"domain", 1, 0, 'd'},
+        {"period", 1, 0, 'p'},
+        {"budget", 1, 0, 'b'},
+        {"vcpu", 1, 0, 'v'},
+        {"cpupool", 1, 0, 'c'},
+        COMMON_LONG_OPTS,
+        {0, 0, 0, 0}
+    };
+
+    SWITCH_FOREACH_OPT(opt, "d:p:b:v:c:h", opts, "sched-rt", 0) {
+    case 'd':
+        dom = optarg;
+        break;
+    case 'p':
+        period = strtol(optarg, NULL, 10);
+        opt_p = 1;
+        break;
+    case 'b':
+        budget = strtol(optarg, NULL, 10);
+        opt_b = 1;
+        break;
+    case 'v':
+        vcpu_index = strtol(optarg, NULL, 10);
+        opt_v = 1;
+        break;
+    case 'c':
+        cpupool = optarg;
+        break;
+    }
+
+    if (cpupool && (dom || opt_p || opt_b || opt_v)) {
+        fprintf(stderr, "Specifying a cpupool is not allowed with other options.\n");
+        return 1;
+    }
+    if (!dom && (opt_p || opt_b || opt_v)) {
+        fprintf(stderr, "Must specify a domain.\n");
+        return 1;
+    }
+    if ( (opt_v || opt_p || opt_b) && (opt_p + opt_b + opt_v != 3) ) {
+        fprintf(stderr, "Must specify vcpu, period, budget\n");
+        return 1;
+    }
+    
+    if (!dom) { /* list all domain's rt scheduler info */
+        return -sched_domain_output(LIBXL_SCHEDULER_RT,
+                                    sched_rt_domain_output,
+                                    sched_rt_pool_output,
+                                    cpupool);
+    } else {
+        uint32_t domid = find_domain(dom);
+        if (!opt_p && !opt_b && !opt_v) { /* output rt scheduler info */
+            sched_rt_domain_output(-1);
+            return -sched_rt_domain_output(domid);
+        } else { /* set rt scheduler paramaters */
+            libxl_domain_sched_params scinfo;
+            libxl_domain_sched_params_init(&scinfo);
+            scinfo.sched = LIBXL_SCHEDULER_RT;
+            scinfo.rt.vcpu_index = vcpu_index;
+            scinfo.rt.period = period;
+            scinfo.rt.budget = budget;
+
             rc = sched_domain_set(domid, &scinfo);
             libxl_domain_sched_params_dispose(&scinfo);
             if (rc)

@@ -5154,6 +5154,139 @@ static int sched_sedf_domain_set(libxl__gc *gc, uint32_t domid,
     return 0;
 }
 
+static int sched_rt_domain_get(libxl__gc *gc, uint32_t domid,
+                               libxl_domain_sched_params *scinfo)
+{
+    struct xen_domctl_sched_rt_params* sdom;
+    uint16_t num_vcpus;
+    int rc, i;
+
+    rc = xc_sched_rt_domain_get_num_vcpus(CTX->xch, domid, &num_vcpus);
+    if (rc != 0) {
+        LOGE(ERROR, "getting num_vcpus of domain sched rt");
+        return ERROR_FAIL;
+    }
+    
+    /* FIXME: can malloc be used in libxl? seems it was used in the file */
+    sdom = (struct xen_domctl_sched_rt_params *)
+            malloc( sizeof(struct xen_domctl_sched_rt_params) * num_vcpus );
+    if ( !sdom ){
+        LOGE(ERROR, "Allocate sdom array fails\n");
+        return ERROR_INVAL;
+    }
+
+    rc = xc_sched_rt_domain_get(CTX->xch, domid, sdom, num_vcpus);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rt");
+        return ERROR_FAIL;
+    }
+
+    /* FIXME: how to guarantee libxl_*_dispose be called exactly once? */
+    libxl_domain_sched_params_init(scinfo);
+    
+    scinfo->rt.num_vcpus = num_vcpus;
+    scinfo->sched = LIBXL_SCHEDULER_RT;
+    /* FIXME: can malloc be used in libxl? seems it was used in the file */
+    scinfo->rt.vcpus = (libxl_vcpu *)
+                       malloc( sizeof(libxl_vcpu) * scinfo->rt.num_vcpus );
+    if ( !scinfo->rt.vcpus ){
+        LOGE(ERROR, "Allocate lib_vcpu array fails\n");
+        return ERROR_INVAL;
+    }
+    for( i = 0; i < num_vcpus; ++i)
+    {
+        scinfo->rt.vcpus[i].period = sdom[i].period;
+        scinfo->rt.vcpus[i].budget = sdom[i].budget;
+        scinfo->rt.vcpus[i].index = sdom[i].index;
+    }
+    
+    free(sdom);
+    return 0;
+}
+
+#define SCHED_RT_VCPU_PERIOD_MAX    31536000000000 /* one year in microsecond*/
+#define SCHED_RT_VCPU_BUDGET_MAX    SCHED_RT_VCPU_PERIOD_MAX
+
+/*
+ * Sanity check of the scinfo parameters
+ * return 0 if all values are valid
+ * return 1 if one param is default value
+ * return 2 if the target vcpu's index, period or budget is out of range
+ */
+static int sched_rt_domain_set_validate_params(libxl__gc *gc,
+                                               const libxl_domain_sched_params *scinfo,
+                                               const uint16_t num_vcpus)
+{
+    int vcpu_index = scinfo->rt.vcpu_index;
+
+    if (vcpu_index == LIBXL_DOMAIN_SCHED_PARAM_VCPU_DEFAULT ||
+        scinfo->rt.period == LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT ||
+        scinfo->rt.budget == LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT)
+    {
+        return 1;
+    }
+
+    if (vcpu_index < 0 || vcpu_index > num_vcpus)
+    {
+        LOG(ERROR, "VCPU index is not set or out of range, "
+                    "valid values are within range from 0 to %d", num_vcpus);
+        return 2;
+    }
+
+    if (scinfo->rt.period < 1 ||
+        scinfo->rt.period > SCHED_RT_VCPU_PERIOD_MAX)
+    {
+        LOG(ERROR, "VCPU period is not set or out of range, "
+                    "valid values are within range from 0 to %lu", SCHED_RT_VCPU_PERIOD_MAX);
+        return 2;
+    }
+
+    if (scinfo->rt.budget < 1 ||
+        scinfo->rt.budget > SCHED_RT_VCPU_BUDGET_MAX)
+    {
+        LOG(ERROR, "VCPU budget is not set or out of range, "
+                    "valid values are within range from 0 to %lu", SCHED_RT_VCPU_BUDGET_MAX);
+        return 2;
+    }
+
+    return 0;
+
+}
+
+static int sched_rt_domain_set(libxl__gc *gc, uint32_t domid,
+                               const libxl_domain_sched_params *scinfo)
+{
+    struct xen_domctl_sched_rt_params sdom;
+    uint16_t num_vcpus;
+    int rc;
+ 
+    rc = xc_sched_rt_domain_get_num_vcpus(CTX->xch, domid, &num_vcpus);
+    if (rc != 0) {
+        LOGE(ERROR, "getting domain sched rt");
+        return ERROR_FAIL;
+    }
+    
+    rc = sched_rt_domain_set_validate_params(gc, scinfo, num_vcpus);
+    if (rc == 2)
+        return ERROR_INVAL;
+    if (rc == 1)
+        return 0;
+    if (rc == 0)
+    {
+        sdom.index = scinfo->rt.vcpu_index;
+        sdom.period = scinfo->rt.period;
+        sdom.budget = scinfo->rt.budget;
+    }
+
+    rc = xc_sched_rt_domain_set(CTX->xch, domid, &sdom);
+    if ( rc < 0 ) {
+        LOGE(ERROR, "setting domain sched rt");
+        return ERROR_FAIL;
+    }
+
+    return 0;
+}
+
 int libxl_domain_sched_params_set(libxl_ctx *ctx, uint32_t domid,
                                   const libxl_domain_sched_params *scinfo)
 {
@@ -5176,6 +5309,9 @@ int libxl_domain_sched_params_set(libxl_ctx *ctx, uint32_t domid,
         break;
     case LIBXL_SCHEDULER_ARINC653:
         ret=sched_arinc653_domain_set(gc, domid, scinfo);
+        break;
+    case LIBXL_SCHEDULER_RT:
+        ret=sched_rt_domain_set(gc, domid, scinfo);
         break;
     default:
         LOG(ERROR, "Unknown scheduler");
@@ -5206,6 +5342,9 @@ int libxl_domain_sched_params_get(libxl_ctx *ctx, uint32_t domid,
         break;
     case LIBXL_SCHEDULER_CREDIT2:
         ret=sched_credit2_domain_get(gc, domid, scinfo);
+        break;
+    case LIBXL_SCHEDULER_RT:
+        ret=sched_rt_domain_get(gc, domid, scinfo);
         break;
     default:
         LOG(ERROR, "Unknown scheduler");

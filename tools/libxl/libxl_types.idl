@@ -153,6 +153,7 @@ libxl_scheduler = Enumeration("scheduler", [
     (5, "credit"),
     (6, "credit2"),
     (7, "arinc653"),
+    (8, "rt"),
     ])
 
 # Consistent with SHUTDOWN_* in sched.h (apart from UNKNOWN)
@@ -303,6 +304,19 @@ libxl_domain_restore_params = Struct("domain_restore_params", [
     ("checkpointed_stream", integer),
     ])
 
+libxl_rt_vcpu = Struct("vcpu",[
+    ("period",       uint64, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
+    ("budget",       uint64, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("index",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_VCPU_INDEX_DEFAULT'}),
+    ])
+
+libxl_domain_sched_rt_params = Struct("domain_sched_rt_params",[
+    ("vcpus",        Array(libxl_rt_vcpu, "num_vcpus")),
+    ("period",       uint64, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
+    ("budget",       uint64, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("vcpu_index",   integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_VCPU_INDEX_DEFAULT'}),
+    ])
+
 libxl_domain_sched_params = Struct("domain_sched_params",[
     ("sched",        libxl_scheduler),
     ("weight",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_WEIGHT_DEFAULT'}),
@@ -311,6 +325,7 @@ libxl_domain_sched_params = Struct("domain_sched_params",[
     ("slice",        integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_SLICE_DEFAULT'}),
     ("latency",      integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_LATENCY_DEFAULT'}),
     ("extratime",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT'}),
+    ("rt",           libxl_domain_sched_rt_params),
     ])
 
 libxl_domain_build_info = Struct("domain_build_info",[

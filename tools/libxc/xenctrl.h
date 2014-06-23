@@ -875,6 +875,18 @@ int xc_sched_credit2_domain_get(xc_interface *xch,
                                uint32_t domid,
                                struct xen_domctl_sched_credit2 *sdom);
 
+int xc_sched_rt_domain_set(xc_interface *xch,
+                          uint32_t domid,
+                          struct xen_domctl_sched_rt_params *sdom);
+int xc_sched_rt_domain_get(xc_interface *xch,
+                          uint32_t domid,
+                          struct xen_domctl_sched_rt_params *sdom,
+                          uint16_t num_vcpus);
+
+int xc_sched_rt_domain_get_num_vcpus(xc_interface *xch,
+                                    uint32_t domid,
+                                    uint16_t *num_vcpus);
+
 int
 xc_sched_arinc653_schedule_set(
     xc_interface *xch,

@@ -339,6 +339,18 @@ struct xen_domctl_max_vcpus {
 typedef struct xen_domctl_max_vcpus xen_domctl_max_vcpus_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_vcpus_t);
 
+/*
+ * This structure is used to pass to rt scheduler from a 
+ * privileged domain to Xen
+ */
+struct xen_domctl_sched_rt_params {
+    /* get vcpus' info */
+    int64_t period; /* s_time_t type */
+    int64_t budget;
+    int     index;
+};
+typedef struct xen_domctl_sched_rt_params xen_domctl_sched_rt_params_t;
+DEFINE_XEN_GUEST_HANDLE(xen_domctl_sched_rt_params_t);
 
 /* XEN_DOMCTL_scheduler_op */
 /* Scheduler types. */
@@ -346,9 +358,12 @@ DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_vcpus_t);
 #define XEN_SCHEDULER_CREDIT   5
 #define XEN_SCHEDULER_CREDIT2  6
 #define XEN_SCHEDULER_ARINC653 7
+#define XEN_SCHEDULER_RT_DS    8
+
 /* Set or get info? */
-#define XEN_DOMCTL_SCHEDOP_putinfo 0
-#define XEN_DOMCTL_SCHEDOP_getinfo 1
+#define XEN_DOMCTL_SCHEDOP_putinfo      0
+#define XEN_DOMCTL_SCHEDOP_getinfo      1
+#define XEN_DOMCTL_SCHEDOP_getnumvcpus   2
 struct xen_domctl_scheduler_op {
     uint32_t sched_id;  /* XEN_SCHEDULER_* */
     uint32_t cmd;       /* XEN_DOMCTL_SCHEDOP_* */
@@ -367,6 +382,15 @@ struct xen_domctl_scheduler_op {
         struct xen_domctl_sched_credit2 {
             uint16_t weight;
         } credit2;
+        struct xen_domctl_sched_rt{
+            /* get vcpus' params */
+            XEN_GUEST_HANDLE_64(xen_domctl_sched_rt_params_t) vcpu;
+            uint16_t nr_vcpus;
+            /* set one vcpu's params */
+            uint16_t vcpu_index;
+            int64_t period;
+            int64_t budget;
+        } rt;
     } u;
 };
 typedef struct xen_domctl_scheduler_op xen_domctl_scheduler_op_t;

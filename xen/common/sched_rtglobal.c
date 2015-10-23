@@ -2,7 +2,8 @@
  * Preemptive Global EDF/RM scheduler for xen
  *
  * by Sisu Xi, 2013, Washington University in Saint Louis
- * based on code of credite Scheduler
+ * by Meng Xu, 2014,2015 University of Pennsylvania
+ * based on code of credit Scheduler
  */
 
 #include <xen/config.h>
@@ -900,7 +901,8 @@ rtglobal_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work
              vcpu_runnable(current) && /*Meng:sisu said vcpu_runnable() check if the vcpu has task running or not*/
              scurr->cur_budget > 0 &&
              ( is_idle_vcpu(snext->vcpu) ||
-               scurr->cur_deadline <= snext->cur_deadline ) ) {
+               ( prv->priority_scheme == EDF && scurr->cur_deadline <= snext->cur_deadline ) ||
+			       ( prv->priority_scheme == RM && scurr->period <= snext->period )) ) {
                // scurr->vcpu->domain->domain_id == snext->vcpu->domain->domain_id ) ) {
             snext = scurr;
         }
@@ -1038,13 +1040,17 @@ runq_tickle(const struct scheduler *ops, struct rtglobal_vcpu *new)
         iter_svc = RTGLOBAL_VCPU(iter_vc);
         /* Meng: choose the cpu with lowest priority vcpu to schedule this task. BUG fixed */
         /* Meng?: if it's RM, the priority decision is different! we should add the swith between RM and EDF. Confirmed */
-        if ( scheduled == NULL || iter_svc->cur_deadline > scheduled->cur_deadline ) { 
+        if ( scheduled == NULL || 
+            ( prv->priority_scheme == EDF && iter_svc->cur_deadline > scheduled->cur_deadline ) ||
+			( prv->priority_scheme == RM && iter_svc->period > scheduled->period ) ) {
             scheduled = iter_svc;
         }
     }
 
     /* 3) new has higher priority, kick it */
-    if ( scheduled != NULL && new->cur_deadline < scheduled->cur_deadline ) {
+    if ( scheduled != NULL && 
+        (( prv->priority_scheme == EDF && new->cur_deadline < scheduled->cur_deadline ) ||
+	    ( prv->priority_scheme == RM && new->period < scheduled->period )) ) {
         cpumask_set_cpu(scheduled->vcpu->processor, &prv->tickled);
         cpu_raise_softirq(scheduled->vcpu->processor, SCHEDULE_SOFTIRQ);
     }

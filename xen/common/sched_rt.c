@@ -153,6 +153,7 @@ struct rt_private {
     struct list_head runq;      /* ordered list of runnable vcpus */
     struct list_head depletedq; /* unordered list of depleted vcpus */
     cpumask_t tickled;          /* cpus been tickled */
+    uint16_t priority_scheme;
 };
 
 /*
@@ -409,8 +410,9 @@ __runq_insert(const struct scheduler *ops, struct rt_vcpu *svc)
         list_for_each(iter, runq)
         {
             struct rt_vcpu * iter_svc = __q_elem(iter);
-            if ( svc->cur_deadline <= iter_svc->cur_deadline )
-                    break;
+            if ( ( prv->priority_scheme == EDF && svc->cur_deadline <= iter_svc->cur_deadline ) ||
+                 ( prv->priority_scheme == RM && svc->period <= iter_svc->period ))
+		       break;
          }
         list_add_tail(&svc->q_elem, iter);
     }
@@ -451,7 +453,8 @@ rt_init(struct scheduler *ops)
     INIT_LIST_HEAD(&prv->depletedq);
 
     cpumask_clear(&prv->tickled);
-
+    /*default scheme is EDF*/
+    prv->priority_scheme= EDF;
     ops->sched_data = prv;
 
     return 0;
@@ -704,8 +707,8 @@ burn_budget(const struct scheduler *ops, struct rt_vcpu *svc, s_time_t now)
      */
     if ( delta < 0 )
     {
-        printk("%s, ATTENTION: now is behind last_start! delta=%"PRI_stime"\n",
-                __func__, delta);
+    /*   printk("%s, ATTENTION: now is behind last_start! delta=%"PRI_stime"\n",
+               __func__, delta);*/
         svc->last_start = now;
         return;
     }
@@ -865,8 +868,9 @@ rt_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work_sched
              vcpu_runnable(current) &&
              scurr->cur_budget > 0 &&
              ( is_idle_vcpu(snext->vcpu) ||
-               scurr->cur_deadline <= snext->cur_deadline ) )
-            snext = scurr;
+               ( prv->priority_scheme == EDF && scurr->cur_deadline <= snext->cur_deadline ) ||
+                   ( prv->priority_scheme == RM && scurr->period <= snext->period ) ) )
+	      snext = scurr;
     }
 
     if ( snext != scurr &&
@@ -889,7 +893,8 @@ rt_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work_sched
         }
     }
 
-    ret.time = MIN(snext->budget, MAX_SCHEDULE); /* sched quantum */
+    /* ret.time = MIN(snext->budget, MAX_SCHEDULE); has problem in nested virt*/
+    ret.time = MAX_SCHEDULE;
     ret.task = snext->vcpu;
 
     /* TRACE */
@@ -955,7 +960,7 @@ static void
 runq_tickle(const struct scheduler *ops, struct rt_vcpu *new)
 {
     struct rt_private *prv = rt_priv(ops);
-    struct rt_vcpu *latest_deadline_vcpu = NULL; /* lowest priority */
+    struct rt_vcpu *lowest_priority_vcpu = NULL; /* lowest priority */
     struct rt_vcpu *iter_svc;
     struct vcpu *iter_vc;
     int cpu = 0, cpu_to_tickle = 0;
@@ -987,16 +992,19 @@ runq_tickle(const struct scheduler *ops, struct rt_vcpu *new)
             goto out;
         }
         iter_svc = rt_vcpu(iter_vc);
-        if ( latest_deadline_vcpu == NULL ||
-             iter_svc->cur_deadline > latest_deadline_vcpu->cur_deadline )
-            latest_deadline_vcpu = iter_svc;
+        if ( lowest_priority_vcpu == NULL ||
+            ( prv->priority_scheme == EDF && iter_svc->cur_deadline > lowest_priority_vcpu->cur_deadline ) ||
+            ( prv->priority_scheme == RM && iter_svc->period > lowest_priority_vcpu->period ) )
+	         lowest_priority_vcpu = iter_svc;
     }
 
     /* 3) candicate has higher priority, kick out lowest priority vcpu */
-    if ( latest_deadline_vcpu != NULL &&
-         new->cur_deadline < latest_deadline_vcpu->cur_deadline )
+    if ( lowest_priority_vcpu != NULL &&
+        (( prv->priority_scheme == EDF && new->cur_deadline < lowest_priority_vcpu->cur_deadline ) ||
+        ( prv->priority_scheme == RM && new->period < lowest_priority_vcpu->period )))
+
     {
-        cpu_to_tickle = latest_deadline_vcpu->vcpu->processor;
+        cpu_to_tickle = lowest_priority_vcpu->vcpu->processor;
         goto out;
     }
 
@@ -1137,7 +1145,6 @@ rt_dom_cntl(
     struct list_head *iter;
     unsigned long flags;
     int rc = 0;
-
     switch ( op->cmd )
     {
     case XEN_DOMCTL_SCHEDOP_getinfo:
@@ -1161,6 +1168,55 @@ rt_dom_cntl(
             svc->budget = MICROSECS(op->u.rtds.budget);
         }
         spin_unlock_irqrestore(&prv->lock, flags);
+        break;
+    }
+
+    return rc;
+}
+
+/**
+ * Xen scheduler callback function to perform a global (not domain-specific) adjustment. It is used by the rglobal scheduelr to change or retrieve the priority scheme or the server mechanism.
+ *
+ * @param ops   Pointer to this instance of the scheduler structure
+ * @param sc    Pointer to the scheduler operation specified by Domain 0
+ *
+ */
+static int
+rt_sys_cntl(const struct scheduler *ops,
+                       struct xen_sysctl_scheduler_op *sc)
+{
+    xen_sysctl_rtds_schedule_t *params = &sc->u.sched_rtds;
+    struct rt_private * prv = rt_priv(ops);
+    int rc = -EINVAL;
+    
+    switch( sc->cmd )
+    {
+    case XEN_SYSCTL_SCHEDOP_putinfo:
+        if (params->priority_scheme == XEN_SYSCTL_RTDS_EDF ) {
+            printk("Priority scheme changed to EDF, printed from sched_rt.c\n");
+        } else if ( params->priority_scheme == XEN_SYSCTL_RTDS_RM ) {
+            printk("Priority scheme changed to RM, printed from shced_rt.c\n");
+        } else {
+            printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
+            rc = -EINVAL;
+        }
+        /*
+        if (prv->priority_scheme != params->priority_scheme)
+        {
+            __runq_resort(ops);
+        }
+        */
+        prv->priority_scheme = params->priority_scheme;
+        rc = 0;
+        break;
+    case XEN_SYSCTL_SCHEDOP_getinfo:
+        params->priority_scheme = prv->priority_scheme;
+        printk("Priority scheme is %d\n", params->priority_scheme);
+        rc = 0;
+        break;
+    default:
+        printk("sc->cmd: no such cmd %d\n", sc->cmd);
+        rc = -EINVAL;
         break;
     }
 
@@ -1191,6 +1247,7 @@ const struct scheduler sched_rtds_def = {
     .remove_vcpu    = rt_vcpu_remove,
 
     .adjust         = rt_dom_cntl,
+    .adjust_global  = rt_sys_cntl,
 
     .pick_cpu       = rt_cpu_pick,
     .do_schedule    = rt_schedule,

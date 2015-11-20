@@ -157,6 +157,12 @@ libxl_tsc_mode = Enumeration("tsc_mode", [
     (3, "native_paravirt"),
     ])
 
+# consistent with xen/include/public/domctl.h
+libxl_schedule_scheme = Enumeration("schedule_scheme", [
+    (81, "EDF"),
+    (82, "RM"),
+    ])
+
 # Consistent with the values defined for HVM_PARAM_TIMER_MODE.
 libxl_timer_mode = Enumeration("timer_mode", [
     (-1, "unknown"),
@@ -733,6 +739,11 @@ libxl_sched_credit_params = Struct("sched_credit_params", [
     ("tslice_ms", integer),
     ("ratelimit_us", integer),
     ], dispose_fn=None)
+
+libxl_sched_rtds_params = Struct("sched_rtds_params", [
+    ("schedule_scheme", uint16),
+    ], dispose_fn=None)
+
 
 libxl_domain_remus_info = Struct("domain_remus_info",[
     ("interval",     integer),

@@ -4815,7 +4815,7 @@ retry_transaction:
     }
 
     rc = xc_domain_set_pod_target(ctx->xch, domid,
-            new_target_memkb / 4, NULL, NULL, NULL);
+            (new_target_memkb + LIBXL_MAXMEM_CONSTANT) / 4, NULL, NULL, NULL);
     if (rc != 0) {
         LIBXL__LOG_ERRNO(ctx, LIBXL__LOG_ERROR,
                 "xc_domain_set_pod_target domid=%d, memkb=%d "
@@ -5804,6 +5804,53 @@ static int sched_rtds_domain_set(libxl__gc *gc, uint32_t domid,
         LOGE(ERROR, "setting domain sched rtds");
         return ERROR_FAIL;
     }
+
+    return 0;
+}
+
+int libxl_sched_rtds_params_get(libxl_ctx *ctx, uint32_t poolid,
+                                    libxl_sched_rtds_params *scinfo)
+{
+    struct xen_sysctl_rtds_schedule sparam;
+    int rc;
+
+    rc = xc_sched_rtds_params_get(ctx->xch, poolid, &sparam);
+    if (rc != 0){
+        LIBXL__LOG_ERRNO(ctx, LIBXL__LOG_ERROR, "getting sched rtds param");
+        return ERROR_FAIL;
+    }
+
+//    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "get sched rtglobal policy_scheme is %d\n",
+//               sparam.priority_scheme);
+    scinfo->schedule_scheme = sparam.priority_scheme;
+
+    return 0;
+}
+
+int libxl_sched_rtds_params_set(libxl_ctx *ctx, uint32_t poolid,
+                                    libxl_sched_rtds_params *scinfo)
+{
+    struct xen_sysctl_rtds_schedule sparam;
+    int rc=0;
+
+    if( scinfo->schedule_scheme != XEN_SYSCTL_RTDS_EDF &&
+        scinfo->schedule_scheme != XEN_SYSCTL_RTDS_RM) {
+        LIBXL__LOG_ERRNO(ctx, LIBXL__LOG_ERROR,
+             "Only support EDF or RM as schedule scheme");
+        return ERROR_INVAL;
+    }
+
+    sparam.priority_scheme = scinfo->schedule_scheme;
+
+    rc = xc_sched_rtds_params_set(ctx->xch, poolid, &sparam);
+    if ( rc < 0 ) {
+        LIBXL__LOG_ERRNO(ctx, LIBXL__LOG_ERROR, "setting sched rtds param");
+        return ERROR_FAIL;
+    }
+
+    scinfo->schedule_scheme = sparam.priority_scheme;
+//    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "set sched rtglobal policy_scheme is %d\n",
+//               scinfo->schedule_scheme);
 
     return 0;
 }

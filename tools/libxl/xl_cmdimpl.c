@@ -198,6 +198,18 @@ static void console_child_report(xlchildnum child)
         child_report(child);
 }
 
+static uint16_t find_schedule_scheme(const char *p)
+{
+    if(!strcmp(p, "EDF")){
+        return LIBXL_SCHEDULE_SCHEME_EDF;
+    }else if(!strcmp(p, "RM")){
+        return LIBXL_SCHEDULE_SCHEME_RM;
+    }else{
+        fprintf(stderr, "%s is an invalid schedule policy\n", p);
+        exit(2);
+    }
+}
+
 static int vncviewer(uint32_t domid, int autopass)
 {
     libxl_vncviewer_exec(ctx, domid, autopass);
@@ -5878,6 +5890,28 @@ static int sched_credit2_domain_output(
     return 0;
 }
 
+static int sched_rtds_params_set(int poolid, libxl_sched_rtds_params *scinfo)
+{
+    int rc;
+
+    rc = libxl_sched_rtds_params_set(ctx, poolid, scinfo);
+    if (rc)
+        fprintf(stderr, "libxl_sched_rtds_params_set failed.\n");
+
+    return rc;
+}
+
+static int sched_rtds_params_get(int poolid, libxl_sched_rtds_params *scinfo)
+{
+    int rc;
+
+    rc = libxl_sched_rtds_params_get(ctx, poolid, scinfo);
+    if (rc)
+        fprintf(stderr, "libxl_sched_rtds_params_get failed.\n");
+
+    return rc;
+}
+
 static int sched_rtds_domain_output(
     int domid)
 {
@@ -5911,10 +5945,22 @@ out:
 static int sched_rtds_pool_output(uint32_t poolid)
 {
     char *poolname;
-
+    int rc;
+    libxl_sched_rtds_params scparam;
     poolname = libxl_cpupoolid_to_name(ctx, poolid);
-    printf("Cpupool %s: sched=RTDS\n", poolname);
-
+    rc = sched_rtds_params_get(poolid, &scparam);
+    if (rc) {
+        printf("Cpupool %s: [sched params unavailable]\n",
+               poolname);
+    } else {
+        if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_EDF ) {
+            printf("Cpupool %s: EDF\n", poolname);
+        } else if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_RM ) {
+            printf("Cpupool %s: RM\n", poolname);
+        } else {
+            printf("Something went wrong: schedule scheme is not EDF or RM\n");
+        }
+    }
     free(poolname);
     return 0;
 }
@@ -6185,20 +6231,23 @@ int main_sched_rtds(int argc, char **argv)
 {
     const char *dom = NULL;
     const char *cpupool = NULL;
+    const char * schedule_scheme = NULL;
     int period = 0; /* period is in microsecond */
     int budget = 0; /* budget is in microsecond */
     bool opt_p = false;
     bool opt_b = false;
+    bool opt_s = false; /*scheduling scheme*/
     int opt, rc;
     static struct option opts[] = {
         {"domain", 1, 0, 'd'},
         {"period", 1, 0, 'p'},
         {"budget", 1, 0, 'b'},
         {"cpupool", 1, 0, 'c'},
+        {"scheme", 1, 0, 's'},
         COMMON_LONG_OPTS
     };
 
-    SWITCH_FOREACH_OPT(opt, "d:p:b:c:", opts, "sched-rtds", 0) {
+    SWITCH_FOREACH_OPT(opt, "d:p:b:c:s:", opts, "sched-rtds", 0) {
     case 'd':
         dom = optarg;
         break;
@@ -6213,6 +6262,10 @@ int main_sched_rtds(int argc, char **argv)
     case 'c':
         cpupool = optarg;
         break;
+    case 's':
+        schedule_scheme = optarg;
+        opt_s = 1;
+        printf("SWITCH_FOREACH_OPT: schedule_scheme is %s = %s\n", schedule_scheme, optarg);
     }
 
     if (cpupool && (dom || opt_p || opt_b)) {
@@ -6229,7 +6282,57 @@ int main_sched_rtds(int argc, char **argv)
         return 1;
     }
 
-    if (!dom) { /* list all domain's rt scheduler info */
+
+    if ( opt_s ) {
+        libxl_sched_rtds_params scparam;
+        uint32_t poolid = 0;
+        if (cpupool) {
+            if (libxl_cpupool_qualifier_to_cpupoolid(ctx, cpupool,
+                                                     &poolid, NULL) ||
+                !libxl_cpupoolid_is_valid(ctx, poolid)) {
+                fprintf(stderr, "unknown cpupool \'%s\'\n", cpupool);
+                return -ERROR_FAIL;
+            }
+        }
+
+
+
+        if ( !schedule_scheme || !strcmp(schedule_scheme, "show")) { /* Output schedule scheme */
+            rc = sched_rtds_params_get(poolid,&scparam);
+            if ( rc ) {
+                fprintf(stderr, "sched_rtds_params_get fails\n");
+            }
+        } else {
+            if( !strcmp(schedule_scheme, "EDF") &&
+                !strcmp(schedule_scheme, "RM") ) {
+                fprintf(stderr, "Invalid schedule scheme."
+                                "Only support schedule scheme EDF or RM\n");
+            }
+
+            printf("Input schedule scheme from user is: %s\n", schedule_scheme);
+            scparam.schedule_scheme = find_schedule_scheme(schedule_scheme);
+            rc = sched_rtds_params_set(poolid,&scparam);
+            if ( rc ) {
+                fprintf(stderr, "sched_rtds_params_set fails\n");
+                return -rc;
+            }
+        }
+
+        if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_EDF ) {
+            printf("Schedule scheme is EDF now\n");
+        } else if ( scparam.schedule_scheme == LIBXL_SCHEDULE_SCHEME_RM ) {
+            printf("Schedule scheme is RM now\n");
+        } else {
+            printf("(Set schedule might fail) Set schedule scheme to not EDF or RM\n");
+        }
+
+        return 0;
+
+    }
+
+
+
+    else if (!dom) { /* list all domain's rt scheduler info */
         return -sched_domain_output(LIBXL_SCHEDULER_RTDS,
                                     sched_rtds_domain_output,
                                     sched_rtds_pool_output,

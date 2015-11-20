@@ -268,10 +268,11 @@ struct cmd_spec cmd_table[] = {
     { "sched-rtds",
       &main_sched_rtds, 0, 1,
       "Get/set rtds scheduler parameters",
-      "[-d <Domain> [-p[=PERIOD]] [-b[=BUDGET]]]",
+      "[-d <Domain> [-p[=PERIOD]] [-b[=BUDGET]] [-s[=SCHEME]]]",
       "-d DOMAIN, --domain=DOMAIN     Domain to modify\n"
       "-p PERIOD, --period=PERIOD     Period (us)\n"
       "-b BUDGET, --budget=BUDGET     Budget (us)\n"
+	  "-s SCHEME, --scheme=SCHEME     Scheme RM or EDF"
     },
     { "domid",
       &main_domid, 0, 0,

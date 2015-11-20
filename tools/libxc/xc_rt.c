@@ -62,3 +62,46 @@ int xc_sched_rtds_domain_get(xc_interface *xch,
 
     return rc;
 }
+int
+xc_sched_rtds_params_set(
+    xc_interface *xch,
+    uint32_t cpupool_id,
+    struct xen_sysctl_rtds_schedule *schedule)
+{
+    int rc;
+    DECLARE_SYSCTL;
+
+    sysctl.cmd = XEN_SYSCTL_scheduler_op;
+    sysctl.u.scheduler_op.cpupool_id = cpupool_id;
+    sysctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTDS;
+    sysctl.u.scheduler_op.cmd = XEN_SYSCTL_SCHEDOP_putinfo;
+
+    sysctl.u.scheduler_op.u.sched_rtds = *schedule;
+
+    rc = do_sysctl(xch, &sysctl);
+
+    *schedule = sysctl.u.scheduler_op.u.sched_rtds;
+
+    return rc;
+}
+
+int
+xc_sched_rtds_params_get(
+    xc_interface *xch,
+    uint32_t cpupool_id,
+    struct xen_sysctl_rtds_schedule *schedule)
+{
+    int rc;
+    DECLARE_SYSCTL;
+
+    sysctl.cmd = XEN_SYSCTL_scheduler_op;
+    sysctl.u.scheduler_op.cpupool_id = cpupool_id;
+    sysctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTDS;
+    sysctl.u.scheduler_op.cmd = XEN_SYSCTL_SCHEDOP_getinfo;
+
+    rc = do_sysctl(xch, &sysctl);
+
+    *schedule = sysctl.u.scheduler_op.u.sched_rtds;
+
+    return rc;
+}

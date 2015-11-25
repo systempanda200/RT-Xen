@@ -330,24 +330,56 @@ DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_vcpus_t);
 #define XEN_SCHEDULER_ARINC653 7
 #define XEN_SCHEDULER_RTDS     8
 
+typedef struct xen_domctl_sched_sedf {
+    uint64_aligned_t period;
+    uint64_aligned_t slice;
+    uint64_aligned_t latency;
+    uint32_t extratime;
+    uint32_t weight;
+} xen_domctl_sched_sedf_t;
+
+typedef struct xen_domctl_sched_credit {
+    uint16_t weight;
+    uint16_t cap;
+} xen_domctl_sched_credit_t;
+
+typedef struct xen_domctl_sched_credit2 {
+    uint16_t weight;
+} xen_domctl_sched_credit2_t;
+
+typedef struct xen_domctl_sched_rtds {
+    uint32_t period;
+    uint32_t budget;
+} xen_domctl_sched_rtds_t;
+
+typedef struct xen_domctl_schedparam_vcpu {
+    union {
+        xen_domctl_sched_credit_t credit;
+        xen_domctl_sched_credit2_t credit2;
+        xen_domctl_sched_rtds_t rtds;
+    } s;
+    uint16_t vcpuid;
+    uint16_t padding;
+} xen_domctl_schedparam_vcpu_t;
+DEFINE_XEN_GUEST_HANDLE(xen_domctl_schedparam_vcpu_t);
+
 /* Set or get info? */
 #define XEN_DOMCTL_SCHEDOP_putinfo 0
 #define XEN_DOMCTL_SCHEDOP_getinfo 1
+#define XEN_DOMCTL_SCHEDOP_putvcpuinfo 2
+#define XEN_DOMCTL_SCHEDOP_getvcpuinfo 3
 struct xen_domctl_scheduler_op {
     uint32_t sched_id;  /* XEN_SCHEDULER_* */
     uint32_t cmd;       /* XEN_DOMCTL_SCHEDOP_* */
     union {
-        struct xen_domctl_sched_credit {
-            uint16_t weight;
-            uint16_t cap;
-        } credit;
-        struct xen_domctl_sched_credit2 {
-            uint16_t weight;
-        } credit2;
-        struct xen_domctl_sched_rtds {
-            uint32_t period;
-            uint32_t budget;
-        } rtds;
+        xen_domctl_sched_sedf_t sedf;
+        xen_domctl_sched_credit_t credit;
+        xen_domctl_sched_credit2_t credit2;
+        xen_domctl_sched_rtds_t rtds;
+        struct {
+            XEN_GUEST_HANDLE_64(xen_domctl_schedparam_vcpu_t) vcpus;
+            uint16_t nr_vcpus;
+        } v;
     } u;
 };
 typedef struct xen_domctl_scheduler_op xen_domctl_scheduler_op_t;

@@ -86,6 +86,18 @@
 #define RTDS_DEFAULT_PERIOD     (MICROSECS(10000))
 #define RTDS_DEFAULT_BUDGET     (MICROSECS(4000))
 
+/*
+ * Max period: max delta of time type
+ * Min period: 100 us, considering the scheduling overhead
+ */
+#define RTDS_MAX_PERIOD     (STIME_DELTA_MAX)
+#define RTDS_MIN_PERIOD     (MICROSECS(100))
+
+/*
+ * Min budget: 100 us
+ */
+#define RTDS_MIN_BUDGET     (MICROSECS(100))
+
 #define UPDATE_LIMIT_SHIFT      10
 #define MAX_SCHEDULE            (MILLISECS(1))
 /*
@@ -1145,13 +1157,18 @@ rt_dom_cntl(
     struct list_head *iter;
     unsigned long flags;
     int rc = 0;
+    int warn = 0;
+    xen_domctl_schedparam_vcpu_t local_sched;
+    s_time_t period, budget;
+    unsigned int index;
+
     switch ( op->cmd )
     {
-    case XEN_DOMCTL_SCHEDOP_getinfo:
+    case XEN_DOMCTL_SCHEDOP_getinfo: /* return the default parameters */
         spin_lock_irqsave(&prv->lock, flags);
         svc = list_entry(sdom->vcpu.next, struct rt_vcpu, sdom_elem);
-        op->u.rtds.period = svc->period / MICROSECS(1); /* transfer to us */
-        op->u.rtds.budget = svc->budget / MICROSECS(1);
+        op->u.rtds.period = RTDS_DEFAULT_PERIOD / MICROSECS(1); /* transfer to us */
+        op->u.rtds.budget = RTDS_DEFAULT_BUDGET / MICROSECS(1);
         spin_unlock_irqrestore(&prv->lock, flags);
         break;
     case XEN_DOMCTL_SCHEDOP_putinfo:
@@ -1170,7 +1187,83 @@ rt_dom_cntl(
         spin_unlock_irqrestore(&prv->lock, flags);
         break;
     }
+    case XEN_DOMCTL_SCHEDOP_getvcpuinfo:
+        spin_lock_irqsave(&prv->lock, flags);
+        for ( index = 0; index < op->u.v.nr_vcpus; index++ )
+        {
+            if ( copy_from_guest_offset(&local_sched,
+                          op->u.v.vcpus, index, 1) )
+            {
+                rc = -EFAULT;
+                break;
+            }
+            if ( local_sched.vcpuid >= d->max_vcpus ||
+                          d->vcpu[local_sched.vcpuid] == NULL )
+            {
+                rc = -EINVAL;
+                break;
+            }
+            svc = rt_vcpu(d->vcpu[local_sched.vcpuid]);
 
+            local_sched.s.rtds.budget = svc->budget / MICROSECS(1);
+            local_sched.s.rtds.period = svc->period / MICROSECS(1);
+
+            if ( __copy_to_guest_offset(op->u.v.vcpus, index,
+                    &local_sched, 1) )
+            {
+                rc = -EFAULT;
+                break;
+            }
+            if( hypercall_preempt_check() )
+            {
+                rc = -ERESTART;
+                break;
+            }
+        }
+        spin_unlock_irqrestore(&prv->lock, flags);
+        break;
+    case XEN_DOMCTL_SCHEDOP_putvcpuinfo:
+        spin_lock_irqsave(&prv->lock, flags);
+        for( index = 0; index < op->u.v.nr_vcpus; index++ )
+        {
+            if ( copy_from_guest_offset(&local_sched,
+                          op->u.v.vcpus, index, 1) )
+            {
+                rc = -EFAULT;
+                break;
+            }
+            if ( local_sched.vcpuid >= d->max_vcpus ||
+                          d->vcpu[local_sched.vcpuid] == NULL )
+            {
+                rc = -EINVAL;
+                break;
+            }
+            svc = rt_vcpu(d->vcpu[local_sched.vcpuid]);
+            period = MICROSECS(local_sched.s.rtds.period);
+            budget = MICROSECS(local_sched.s.rtds.budget);
+            if ( period < MICROSECS(10) || period > RTDS_MAX_PERIOD ||
+                          budget < MICROSECS(10) || budget > period )
+            {
+                rc = -EINVAL;
+                break;
+            }
+            if ( period < RTDS_MIN_PERIOD || budget < RTDS_MIN_BUDGET )
+                warn = 1;
+
+            svc->period = period;
+            svc->budget = budget;
+            if( hypercall_preempt_check() )
+            {
+                rc = -ERESTART;
+                break;
+            }
+        }
+        spin_unlock_irqrestore(&prv->lock, flags);
+        break;
+    }
+
+    if ( rc == 0 && warn == 1 ) /* print warning in libxl */
+        rc = 1;
     return rc;
 }
 

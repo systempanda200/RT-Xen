@@ -5742,6 +5742,157 @@ static int sched_credit2_domain_set(libxl__gc *gc, uint32_t domid,
     return 0;
 }
 
+
+static int sched_rtds_validate_params(libxl__gc *gc, int period,
+                                 int budget, uint32_t *sdom_period,
+                                 uint32_t *sdom_budget)
+{
+    if (period != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
+        if (period < 1) {
+            LOG(ERROR, "VCPU period is not set or out of range, "
+                       "valid values are larger than or equal to 1");
+            return 1;
+        }
+        *sdom_period = period;
+    }
+
+    if (budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
+        if (budget < 1) {
+            LOG(ERROR, "VCPU budget is not set or out of range, "
+                       "valid values are larger than or equal to 1");
+            return 1;
+        }
+        *sdom_budget = budget;
+    }
+
+    if (budget > period) {
+        LOG(ERROR, "VCPU budget must be smaller than VCPU period");
+        return 1;
+    }
+
+    return 0;
+}
+
+static int sched_rtds_vcpu_get(libxl__gc *gc, uint32_t domid,
+                               libxl_vcpu_sched_params *scinfo)
+{
+    uint16_t num_vcpus;
+    int rc, i;
+    xc_dominfo_t info;
+    xen_domctl_schedparam_vcpu_t *vcpus;
+
+    rc = xc_domain_getinfo(CTX->xch, domid, 1, &info);
+    if (rc < 0) {
+        LOGE(ERROR, "getting domain info");
+        return ERROR_FAIL;
+    }
+
+    if (scinfo->num_vcpus == 0)
+        num_vcpus = info.max_vcpu_id + 1;
+    else
+        num_vcpus = scinfo->num_vcpus;
+
+    GCNEW_ARRAY(vcpus, num_vcpus);
+
+    if (scinfo->num_vcpus > 0)
+        for (i=0; i < num_vcpus; i++) {
+            if (scinfo->vcpus[i].vcpuid < 0 ||
+                    scinfo->vcpus[i].vcpuid > info.max_vcpu_id) {
+                LOG(ERROR, "VCPU index is out of range, "
+                           "valid values are within range from 0 to %d",
+                           info.max_vcpu_id);
+                return ERROR_INVAL;
+            }
+            vcpus[i].vcpuid = scinfo->vcpus[i].vcpuid;
+    } else
+        for (i=0; i < num_vcpus; i++)
+            vcpus[i].vcpuid = i;
+
+    rc = xc_sched_rtds_vcpu_get(CTX->xch, domid, vcpus, num_vcpus);
+    if (rc != 0) {
+        LOGE(ERROR, "getting vcpu sched rtds");
+        return ERROR_FAIL;
+    }
+
+    scinfo->sched = LIBXL_SCHEDULER_RTDS;
+    if (scinfo->num_vcpus == 0) {
+        scinfo->num_vcpus = num_vcpus;
+        scinfo->vcpus = libxl__calloc(NOGC, num_vcpus, sizeof(libxl_sched_params));
+    }
+    for(i = 0; i < num_vcpus; i++) {
+        scinfo->vcpus[i].period = vcpus[i].s.rtds.period;
+        scinfo->vcpus[i].budget = vcpus[i].s.rtds.budget;
+        scinfo->vcpus[i].vcpuid = vcpus[i].vcpuid;
+    }
+
+    return 0;
+}
+
+static int sched_rtds_vcpu_set(libxl__gc *gc, uint32_t domid,
+                               const libxl_vcpu_sched_params *scinfo)
+{
+    int rc;
+    int i;
+    uint16_t max_vcpuid;
+    xc_dominfo_t info;
+    xen_domctl_schedparam_vcpu_t *vcpus;
+    int num_vcpus;
+
+    rc = xc_domain_getinfo(CTX->xch, domid, 1, &info);
+    if (rc < 0) {
+        LOGE(ERROR, "getting domain info");
+        return ERROR_FAIL;
+    }
+    max_vcpuid = info.max_vcpu_id;
+
+    if (scinfo->num_vcpus > 0) { /* only set the vcpu specified */
+        num_vcpus = scinfo->num_vcpus;
+        GCNEW_ARRAY(vcpus, num_vcpus);
+        for (i = 0; i < num_vcpus; i++) {
+            if (scinfo->vcpus[i].vcpuid < 0 ||
+                    scinfo->vcpus[i].vcpuid > max_vcpuid) {
+                LOG(ERROR, "VCPU index is out of range, "
+                           "valid values are within range from 0 to %d",
+                           max_vcpuid);
+                return ERROR_INVAL;
+            }
+            vcpus[i].vcpuid = scinfo->vcpus[i].vcpuid;
+
+            rc = sched_rtds_validate_params(gc,
+                    scinfo->vcpus[i].period, scinfo->vcpus[i].budget,
+                    &vcpus[i].s.rtds.period, &vcpus[i].s.rtds.budget);
+            if (rc)
+                return ERROR_INVAL;
+        }
+    } else { /* set the entire domain */
+        num_vcpus = max_vcpuid + 1;
+        GCNEW_ARRAY(vcpus, num_vcpus);
+        rc = sched_rtds_validate_params(gc,
+                    scinfo->vcpus[0].period, scinfo->vcpus[0].budget,
+                    &vcpus[0].s.rtds.period, &vcpus[0].s.rtds.budget);
+        if (rc)
+            return ERROR_INVAL;
+        for (i = 0; i < num_vcpus; i++) {
+            vcpus[i].vcpuid = i;
+            vcpus[i].s.rtds.period = scinfo->vcpus[0].period;
+            vcpus[i].s.rtds.budget = scinfo->vcpus[0].budget;
+        }
+    }
+
+    rc = xc_sched_rtds_vcpu_set(CTX->xch, domid,
+            vcpus, num_vcpus);
+    if (rc == 1) {
+        printf("WARN: too small period or budget may "
+                   "result in large scheduling overhead\n");
+        rc = 0;
+    } else if (rc != 0) {
+        LOGE(ERROR, "setting vcpu sched rtds");
+        return ERROR_FAIL;
+    }
+
+    return rc;
+}
+
 static int sched_rtds_domain_get(libxl__gc *gc, uint32_t domid,
                                libxl_domain_sched_params *scinfo)
 {
@@ -5775,29 +5926,11 @@ static int sched_rtds_domain_set(libxl__gc *gc, uint32_t domid,
         return ERROR_FAIL;
     }
 
-    if (scinfo->period != LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT) {
-        if (scinfo->period < 1) {
-            LOG(ERROR, "VCPU period is not set or out of range, "
-                       "valid values are larger than 1");
-            return ERROR_INVAL;
-        }
-        sdom.period = scinfo->period;
-    }
-
-    if (scinfo->budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT) {
-        if (scinfo->budget < 1) {
-            LOG(ERROR, "VCPU budget is not set or out of range, "
-                       "valid values are larger than 1");
-            return ERROR_INVAL;
-        }
-        sdom.budget = scinfo->budget;
-    }
-
-    if (sdom.budget > sdom.period) {
-        LOG(ERROR, "VCPU budget is larger than VCPU period, "
-                   "VCPU budget should be no larger than VCPU period");
+    rc = sched_rtds_validate_params(gc, scinfo->period, scinfo->budget,
+        &sdom.period, &sdom.budget);
+    if (rc)    
         return ERROR_INVAL;
-    }
+    
 
     rc = xc_sched_rtds_domain_set(CTX->xch, domid, &sdom);
     if (rc < 0) {
@@ -5820,8 +5953,6 @@ int libxl_sched_rtds_params_get(libxl_ctx *ctx, uint32_t poolid,
         return ERROR_FAIL;
     }
 
-//    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "get sched rtglobal policy_scheme is %d\n",
-//               sparam.priority_scheme);
     scinfo->schedule_scheme = sparam.priority_scheme;
 
     return 0;
@@ -5849,12 +5980,14 @@ int libxl_sched_rtds_params_set(libxl_ctx *ctx, uint32_t poolid,
     }
 
     scinfo->schedule_scheme = sparam.priority_scheme;
-//    LIBXL__LOG(ctx, LIBXL__LOG_INFO, "set sched rtglobal policy_scheme is %d\n",
-//               scinfo->schedule_scheme);
-
     return 0;
 }
 
+/* Set the per-domain scheduling parameters.
+ * For schedulers that support per-vcpu settings (e.g., RTDS),
+ * calling *_domain_set functions will set all vcpus with the same
+ * scheduling parameters.
+*/
 int libxl_domain_sched_params_set(libxl_ctx *ctx, uint32_t domid,
                                   const libxl_domain_sched_params *scinfo)
 {
@@ -5892,6 +6025,52 @@ int libxl_domain_sched_params_set(libxl_ctx *ctx, uint32_t domid,
     return ret;
 }
 
+/* Set the per-vcpu scheduling parameters */
+int libxl_vcpu_sched_params_set(libxl_ctx *ctx, uint32_t domid,
+                                  const libxl_vcpu_sched_params *scinfo)
+{
+    GC_INIT(ctx);
+    libxl_scheduler sched = scinfo->sched;
+    int ret;
+
+    if (sched == LIBXL_SCHEDULER_UNKNOWN)
+        sched = libxl__domain_scheduler(gc, domid);
+
+    switch (sched) {
+    case LIBXL_SCHEDULER_SEDF:
+        LOG(ERROR, "No per-vcpu set function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_CREDIT:
+        LOG(ERROR, "No per-vcpu set function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_CREDIT2:
+        LOG(ERROR, "No per-vcpu set function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_ARINC653:
+        LOG(ERROR, "No per-vcpu set function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_RTDS:
+        ret = sched_rtds_vcpu_set(gc, domid, scinfo);
+        break;
+    default:
+        LOG(ERROR, "Unknown scheduler");
+        ret = ERROR_INVAL;
+        break;
+    }
+
+    GC_FREE;
+    return ret;
+}
+
+/* Get the per-domain scheduling parameters.
+* For schedulers that support per-vcpu settings (e.g., RTDS),
+* calling *_domain_get functions will get default scheduling
+* parameters.
+*/
 int libxl_domain_sched_params_get(libxl_ctx *ctx, uint32_t domid,
                                   libxl_domain_sched_params *scinfo)
 {
@@ -5919,6 +6098,45 @@ int libxl_domain_sched_params_get(libxl_ctx *ctx, uint32_t domid,
     default:
         LOG(ERROR, "Unknown scheduler");
         ret=ERROR_INVAL;
+        break;
+    }
+
+    GC_FREE;
+    return ret;
+}
+
+/* Get the per-vcpu scheduling parameters */
+int libxl_vcpu_sched_params_get(libxl_ctx *ctx, uint32_t domid,
+                                  libxl_vcpu_sched_params *scinfo)
+{
+    GC_INIT(ctx);
+    int ret;
+
+    scinfo->sched = libxl__domain_scheduler(gc, domid);
+
+    switch (scinfo->sched) {
+    case LIBXL_SCHEDULER_SEDF:
+        LOG(ERROR, "No per-vcpu get function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_CREDIT:
+        LOG(ERROR, "No per-vcpu get function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_CREDIT2:
+        LOG(ERROR, "No per-vcpu get function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_ARINC653:
+        LOG(ERROR, "No per-vcpu get function provided");
+        ret = ERROR_INVAL;
+        break;
+    case LIBXL_SCHEDULER_RTDS:
+        ret = sched_rtds_vcpu_get(gc, domid, scinfo);
+        break;
+    default:
+        LOG(ERROR, "Unknown scheduler");
+        ret = ERROR_INVAL;
         break;
     }
 

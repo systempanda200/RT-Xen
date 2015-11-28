@@ -1186,7 +1186,6 @@ rt_dom_cntl(
         }
         spin_unlock_irqrestore(&prv->lock, flags);
         break;
-    }
     case XEN_DOMCTL_SCHEDOP_getvcpuinfo:
         spin_lock_irqsave(&prv->lock, flags);
         for ( index = 0; index < op->u.v.nr_vcpus; index++ )

@@ -1223,7 +1223,6 @@ rt_dom_cntl(
         break;
     case XEN_DOMCTL_SCHEDOP_putvcpuinfo:
         spin_lock_irqsave(&prv->lock, flags);
-        printk("putvcpuinfo: start");
         for( index = 0; index < op->u.v.nr_vcpus; index++ )
         {
             if ( copy_from_guest_offset(&local_sched,
@@ -1258,7 +1257,6 @@ rt_dom_cntl(
             svc->period = period;
             svc->budget = budget;
         }
-        printk("putvcpuinfo: end rc=%d\n", rc);
         spin_unlock_irqrestore(&prv->lock, flags);
         break;
     }
@@ -1287,9 +1285,9 @@ rt_sys_cntl(const struct scheduler *ops,
     {
     case XEN_SYSCTL_SCHEDOP_putinfo:
         if (params->priority_scheme == XEN_SYSCTL_RTDS_EDF ) {
-            printk("Priority scheme changed to EDF, printed from sched_rt.c\n");
+            printk("Priority scheme changed to EDF\n");
         } else if ( params->priority_scheme == XEN_SYSCTL_RTDS_RM ) {
-            printk("Priority scheme changed to RM, printed from shced_rt.c\n");
+            printk("Priority scheme changed to RM\n");
         } else {
             printk("Input priority scheme is %d (Not EDF or RM)\n", prv->priority_scheme);
             rc = -EINVAL;

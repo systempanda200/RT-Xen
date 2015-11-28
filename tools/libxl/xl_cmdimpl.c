@@ -6460,11 +6460,7 @@ int main_sched_rtds(int argc, char **argv)
         rc = 1;
         goto out;
     }
-    if (dom && !opt_v && !opt_all && (opt_p || opt_b)) {
-        fprintf(stderr, "Must specify VCPU\n");
-        rc = 1;
-        goto out;
-    }
+
     if (opt_v && opt_all) {
         fprintf(stderr, "Incorrect VCPU IDs.\n");
         rc = 1;
@@ -6557,7 +6553,7 @@ int main_sched_rtds(int argc, char **argv)
             rc = -sched_rtds_vcpu_output(domid, &scinfo);
             libxl_vcpu_sched_params_dispose(&scinfo);
             goto out;
-        } else if (opt_v || opt_all) { /* set per-vcpu rtds scheduler parameters */
+        } else if (opt_v || opt_all || (opt_b && opt_p)) { /* set per-vcpu rtds scheduler parameters */
             printf("user is setting per-vcpu params\n %d vcpus are to be changed\n",v_index);
             libxl_vcpu_sched_params scinfo;
             libxl_vcpu_sched_params_init(&scinfo);            

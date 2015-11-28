@@ -147,7 +147,6 @@ int xc_sched_rtds_vcpu_get(
 
     if ( xc_hypercall_bounce_pre(xch, vcpus) )
         return -1;
-    printf("xc after pre\n");
     domctl.cmd = XEN_DOMCTL_scheduler_op;
     domctl.domain = (domid_t) domid;
     domctl.u.scheduler_op.sched_id = XEN_SCHEDULER_RTDS;
@@ -156,7 +155,6 @@ int xc_sched_rtds_vcpu_get(
     set_xen_guest_handle(domctl.u.scheduler_op.u.v.vcpus, vcpus);
 
     rc = do_domctl(xch, &domctl);
-    printf("xc after domctl\n");
     xc_hypercall_bounce_post(xch, vcpus);
 
     return rc;

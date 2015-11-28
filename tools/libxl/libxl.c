@@ -5787,15 +5787,10 @@ static int sched_rtds_vcpu_get(libxl__gc *gc, uint32_t domid,
         return ERROR_FAIL;
     }
 
-    if (scinfo->num_vcpus == 0){
+    if (scinfo->num_vcpus == 0)
         num_vcpus = info.max_vcpu_id + 1;
-        printf("scinfo->num_vcpus==0\n");
-     }
-    else{
+    else
         num_vcpus = scinfo->num_vcpus;
-         printf("scinfo->num_vcpus!=0\n");
-    }
-    printf("num_vcpus from vcpu_get %d\n",num_vcpus);
 
     GCNEW_ARRAY(vcpus, num_vcpus);
 
@@ -5810,13 +5805,9 @@ static int sched_rtds_vcpu_get(libxl__gc *gc, uint32_t domid,
                 return ERROR_INVAL;
             }
             vcpus[i].vcpuid = scinfo->vcpus[i].vcpuid;
-            printf("vcpu[%d].vcpuid=%d\n",i,vcpus[i].vcpuid);
     } else
-        for (i=0; i < num_vcpus; i++) {
+        for (i=0; i < num_vcpus; i++)
             vcpus[i].vcpuid = i;
-            printf("vcpus[%d].vcpuid=%d\n",i,i);
-        }
-    printf("domid: %d\n",domid);
     rc = xc_sched_rtds_vcpu_get(CTX->xch, domid, vcpus, num_vcpus);
     if (rc != 0) {
         LOGE(ERROR, "getting vcpu sched rtds");

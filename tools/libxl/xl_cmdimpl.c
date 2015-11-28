@@ -6543,13 +6543,8 @@ int main_sched_rtds(int argc, char **argv)
         goto out;
     } else {
         uint32_t domid = find_domain(dom);
-        if (!opt_p && !opt_all) { /* output rt scheduler info */
-            printf("user is printing our rt scheduler info\n");
-            sched_rtds_domain_output(-1);
-            rc = -sched_rtds_domain_output(domid);
-            goto out;
-        } else if (!opt_p && !opt_b) { /* output rtds scheduler info */
-            printf("user is printing out rt scheduler info 2\n");
+        if (!opt_p && !opt_b) { /* output rtds scheduler info */
+            printf("user is printing out cpu info\n");
             libxl_vcpu_sched_params scinfo;
             libxl_vcpu_sched_params_init(&scinfo);
             sched_rtds_vcpu_output(-1, &scinfo);
@@ -6562,7 +6557,7 @@ int main_sched_rtds(int argc, char **argv)
             rc = -sched_rtds_vcpu_output(domid, &scinfo);
             libxl_vcpu_sched_params_dispose(&scinfo);
             goto out;
-    } else if (opt_v || opt_all) { /* set per-vcpu rtds scheduler parameters */
+        } else if (opt_v || opt_all) { /* set per-vcpu rtds scheduler parameters */
             printf("user is setting per-vcpu params\n %d vcpus are to be changed\n",v_index);
             libxl_vcpu_sched_params scinfo;
             libxl_vcpu_sched_params_init(&scinfo);            

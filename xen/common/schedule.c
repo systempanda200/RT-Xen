@@ -250,9 +250,15 @@ int sched_init_vcpu(struct vcpu *v, unsigned int processor)
     TRACE_2D(TRC_SCHED_DOM_ADD, v->domain->domain_id, v->vcpu_id);
 
     v->sched_priv = SCHED_OP(DOM2OP(d), alloc_vdata, v, d->sched_priv);
-    ASSERT(v != NULL);
+    if (v == NULL)
+    {
+        printk("v is null\n");
+    }
     if ( v->sched_priv == NULL )
+    {
+        printk("v->sched_priv is null\n");
         return 1;
+    }
 
     SCHED_OP(DOM2OP(d), insert_vcpu, v);
 
@@ -1149,23 +1155,11 @@ long sched_adjust(struct domain *d, struct xen_domctl_scheduler_op *op)
 
     if ( (op->sched_id != DOM2OP(d)->sched_id) ||
          ((op->cmd != XEN_DOMCTL_SCHEDOP_putinfo) &&
-          (op->cmd != XEN_DOMCTL_SCHEDOP_getinfo)) )
+          (op->cmd != XEN_DOMCTL_SCHEDOP_getinfo) &&
+          (op->cmd != XEN_DOMCTL_SCHEDOP_putvcpuinfo) &&
+          (op->cmd != XEN_DOMCTL_SCHEDOP_getvcpuinfo)) )
         return -EINVAL;
-
-    else
-        switch ( op->cmd )
-        {
-        case XEN_DOMCTL_SCHEDOP_putinfo:
-            break;
-        case XEN_DOMCTL_SCHEDOP_getinfo:
-            break;
-        case XEN_DOMCTL_SCHEDOP_putvcpuinfo:
-            break;
-        case XEN_DOMCTL_SCHEDOP_getvcpuinfo:
-            break;
-        default:
-            return -EINVAL;
-        }
+    /* MX: You don not need the else operation! It does nothing! */
     /* NB: the pluggable scheduler code needs to take care
      * of locking by itself. */
     if ( (ret = SCHED_OP(DOM2OP(d), adjust, d, op)) == 0 )

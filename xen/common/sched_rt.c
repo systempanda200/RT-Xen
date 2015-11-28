@@ -1223,6 +1223,7 @@ rt_dom_cntl(
         break;
     case XEN_DOMCTL_SCHEDOP_putvcpuinfo:
         spin_lock_irqsave(&prv->lock, flags);
+        printk("putvcpuinfo: start");
         for( index = 0; index < op->u.v.nr_vcpus; index++ )
         {
             if ( copy_from_guest_offset(&local_sched,
@@ -1256,19 +1257,14 @@ rt_dom_cntl(
 
             svc->period = period;
             svc->budget = budget;
-            if( hypercall_preempt_check() )
-            {
-                printk("RTDS: preempt_check error\n");
-                rc = -ERESTART;
-                break;
-            }
         }
+        printk("putvcpuinfo: end rc=%d\n", rc);
         spin_unlock_irqrestore(&prv->lock, flags);
         break;
     }
 
     if ( rc == 0 && warn == 1 ) /* print warning in libxl */
-        rc = 1;
+        rc = 0; /* MX: mute the warning print in libxl */
     return rc;
 }
 

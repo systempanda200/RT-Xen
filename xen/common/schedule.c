@@ -250,6 +250,7 @@ int sched_init_vcpu(struct vcpu *v, unsigned int processor)
     TRACE_2D(TRC_SCHED_DOM_ADD, v->domain->domain_id, v->vcpu_id);
 
     v->sched_priv = SCHED_OP(DOM2OP(d), alloc_vdata, v, d->sched_priv);
+    ASSERT(v != NULL);
     if ( v->sched_priv == NULL )
         return 1;
 

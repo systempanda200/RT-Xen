@@ -5895,7 +5895,7 @@ static int sched_rtds_vcpu_set(libxl__gc *gc, uint32_t domid,
                    "result in large scheduling overhead\n");
         rc = 0;
     } else if (rc != 0) {
-        LOGE(ERROR, "setting vcpu sched rtds");
+        LOGE(ERROR, "setting vcpu sched rtds (rc=%d)", rc);
         return ERROR_FAIL;
     }
 

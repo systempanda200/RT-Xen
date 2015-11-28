@@ -6563,7 +6563,7 @@ int main_sched_rtds(int argc, char **argv)
             libxl_vcpu_sched_params_dispose(&scinfo);
             goto out;
     } else if (opt_v || opt_all) { /* set per-vcpu rtds scheduler parameters */
-            printf("user is setting per-vcpu params\n %d vcpus are to be changed\n",v_index+1);
+            printf("user is setting per-vcpu params\n %d vcpus are to be changed\n",v_index);
             libxl_vcpu_sched_params scinfo;
             libxl_vcpu_sched_params_init(&scinfo);            
             scinfo.sched = LIBXL_SCHEDULER_RTDS;

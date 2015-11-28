@@ -1228,12 +1228,15 @@ rt_dom_cntl(
             if ( copy_from_guest_offset(&local_sched,
                           op->u.v.vcpus, index, 1) )
             {
+                printk("RTDS: copy_from_guest_offset error");
                 rc = -EFAULT;
                 break;
             }
             if ( local_sched.vcpuid >= d->max_vcpus ||
                           d->vcpu[local_sched.vcpuid] == NULL )
             {
+                printk("RTDS: local_sched.vcpuid=%d, d->max_vcpu=%d",
+                        local_sched.vcpuid, d->max_vcpus);
                 rc = -EINVAL;
                 break;
             }
@@ -1243,6 +1246,8 @@ rt_dom_cntl(
             if ( period < MICROSECS(10) || period > RTDS_MAX_PERIOD ||
                           budget < MICROSECS(10) || budget > period )
             {
+                printk("RTDS: period (%ld) or budget (%ld) is invalid",
+                        period, budget);
                 rc = -EINVAL;
                 break;
             }
@@ -1253,6 +1258,7 @@ rt_dom_cntl(
             svc->budget = budget;
             if( hypercall_preempt_check() )
             {
+                printk("RTDS: preempt_check error\n");
                 rc = -ERESTART;
                 break;
             }

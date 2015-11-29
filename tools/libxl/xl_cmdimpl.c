@@ -6446,7 +6446,6 @@ int main_sched_rtds(int argc, char **argv)
     case 's':
         schedule_scheme = optarg;
         opt_s = 1;
-        printf("SWITCH_FOREACH_OPT: schedule_scheme is %s = %s\n", schedule_scheme, optarg);
     }
 
     if (cpupool && (dom || opt_p || opt_b || opt_v || opt_all)) {
@@ -6485,8 +6484,6 @@ int main_sched_rtds(int argc, char **argv)
             }
         }
 
-
-
         if ( !schedule_scheme || !strcmp(schedule_scheme, "show")) { /* Output schedule scheme */
             rc = sched_rtds_params_get(poolid,&scparam);
             if ( rc ) {
@@ -6499,7 +6496,6 @@ int main_sched_rtds(int argc, char **argv)
                                 "Only support schedule scheme EDF or RM\n");
             }
 
-            printf("Input schedule scheme from user is: %s\n", schedule_scheme);
             scparam.schedule_scheme = find_schedule_scheme(schedule_scheme);
             rc = sched_rtds_params_set(poolid,&scparam);
             if ( rc ) {
@@ -6519,8 +6515,6 @@ int main_sched_rtds(int argc, char **argv)
         return 0;
 
     }
-
-
 
     else if ((!dom) && opt_all) { /* list all domain's rtds scheduler info */
         rc = -sched_vcpu_output(LIBXL_SCHEDULER_RTDS,

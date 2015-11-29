@@ -1303,7 +1303,7 @@ rt_sys_cntl(const struct scheduler *ops,
         break;
     case XEN_SYSCTL_SCHEDOP_getinfo:
         params->priority_scheme = prv->priority_scheme;
-        printk("Priority scheme is %d\n", params->priority_scheme);
+        printk("Priority scheme is %s\n", params->priority_scheme == XEN_SYSCTL_RTDS_EDF? "EDF":"RM");
         rc = 0;
         break;
     default:

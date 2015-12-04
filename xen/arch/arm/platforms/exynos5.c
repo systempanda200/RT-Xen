@@ -165,8 +165,9 @@ static void exynos_cpu_power_up(void __iomem *power, int cpu)
 
 static int exynos5_cpu_power_up(void __iomem *power, int cpu)
 {
-    unsigned int timeout;
+    unsigned int timeout, val;
 
+    cpu = (cpu + 4) % 8; // logical mapping for EXYNOS5422 cores
     if ( !exynos_cpu_power_state(power, cpu) )
     {
         exynos_cpu_power_up(power, cpu);
@@ -187,6 +188,19 @@ static int exynos5_cpu_power_up(void __iomem *power, int cpu)
             return -ETIMEDOUT;
         }
     }
+
+    cpu = (cpu + 4) % 8; // logical mapping for EXYNOS5422 cores
+    if ( cpu < 4 )
+    {
+        while (!__raw_readl(power + EXYNOS5_PMU_SPARE2))
+            udelay(10);
+
+        udelay(10);
+
+        val = ((1 << 20) | (1 << 8)) << cpu;
+        __raw_writel(val, power + EXYNOS5_SWRESET);
+    }
+
     return 0;
 }
 
@@ -298,6 +312,7 @@ static const char * const exynos5250_dt_compat[] __initconst =
 static const char * const exynos5_dt_compat[] __initconst =
 {
     "samsung,exynos5410",
+    "samsung,exynos5422",
     NULL
 };
 

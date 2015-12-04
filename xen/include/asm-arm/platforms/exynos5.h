@@ -8,6 +8,7 @@
 #define EXYNOS5_PA_TIMER            0x12dd0000
 
 #define EXYNOS5_SWRESET             0x0400      /* Relative to PA_PMU */
+#define EXYNOS5_PMU_SPARE2          0x0908
 
 #endif /* __ASM_ARM_PLATFORMS_EXYNOS5_H */
 /*

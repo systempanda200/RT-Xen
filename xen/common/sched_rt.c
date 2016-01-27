@@ -905,8 +905,7 @@ rt_schedule(const struct scheduler *ops, s_time_t now, bool_t tasklet_work_sched
         }
     }
 
-    /* ret.time = MIN(snext->budget, MAX_SCHEDULE); has problem in nested virt*/
-    ret.time = MAX_SCHEDULE;
+    ret.time = MIN(snext->budget, MAX_SCHEDULE); /* has problem in nested virt */
     ret.task = snext->vcpu;
 
     /* TRACE */

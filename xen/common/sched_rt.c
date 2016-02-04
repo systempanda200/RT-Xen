@@ -1246,7 +1246,7 @@ rt_dom_cntl(
                           budget < MICROSECS(10) || budget > period )
             {
                 printk("RTDS: period (%ld) or budget (%ld) is invalid",
-                        period, budget);
+                        (long int) period, (long int) budget);
                 rc = -EINVAL;
                 break;
             }

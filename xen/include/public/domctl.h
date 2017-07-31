@@ -360,6 +360,9 @@ typedef struct xen_domctl_sched_credit2 {
 typedef struct xen_domctl_sched_rtds {
     uint32_t period;
     uint32_t budget;
+#define _XEN_DOMCTL_SCHED_RTDS_extratime 0
+#define XEN_DOMCTL_SCHED_RTDS_extratime  (1U<<_XEN_DOMCTL_SCHED_RTDS_extratime)
+    uint32_t flags;
 } xen_domctl_sched_rtds_t;
 
 typedef struct xen_domctl_schedparam_vcpu {

@@ -401,6 +401,7 @@ libxl_sched_params = Struct("sched_params",[
     ("period",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
     ("extratime",    integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT'}),
     ("budget",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("is_work_conserving", integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_IS_WORK_CONSERVING_DEFAULT'}),
     ])
 
 libxl_vcpu_sched_params = Struct("vcpu_sched_params",[
@@ -414,6 +415,7 @@ libxl_domain_sched_params = Struct("domain_sched_params",[
     ("cap",          integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_CAP_DEFAULT'}),
     ("period",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_PERIOD_DEFAULT'}),
     ("budget",       integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT'}),
+    ("is_work_conserving", integer, {'init_val': 'LIBXL_DOMAIN_SCHED_PARAM_IS_WORK_CONSERVING_DEFAULT'}),
 
     # The following three parameters ('slice', 'latency' and 'extratime') are deprecated,
     # and will have no effect if used, since the SEDF scheduler has been removed.

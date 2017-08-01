@@ -251,7 +251,7 @@ static int sched_rtds_domain_output(
     libxl_domain_sched_params scinfo;
 
     if (domid < 0) {
-        printf("%-33s %4s %9s %9s\n", "Name", "ID", "Period", "Budget");
+        printf("%-33s %4s %9s %9s %15s\n", "Name", "ID", "Period", "Budget", "Work conserving");
         return 0;
     }
 
@@ -262,11 +262,12 @@ static int sched_rtds_domain_output(
     }
 
     domname = libxl_domid_to_name(ctx, domid);
-    printf("%-33s %4d %9d %9d\n",
+    printf("%-33s %4d %9d %9d %15d\n",
         domname,
         domid,
         scinfo.period,
-        scinfo.budget);
+        scinfo.budget,
+        scinfo.is_work_conserving);
     free(domname);
     libxl_domain_sched_params_dispose(&scinfo);
     return 0;
@@ -279,8 +280,8 @@ static int sched_rtds_vcpu_output(int domid, libxl_vcpu_sched_params *scinfo)
     int i;
 
     if (domid < 0) {
-        printf("%-33s %4s %4s %9s %9s\n", "Name", "ID",
-               "VCPU", "Period", "Budget");
+        printf("%-33s %4s %4s %9s %9s %15s\n", "Name", "ID",
+               "VCPU", "Period", "Budget", "Work conserving");
         return 0;
     }
 
@@ -290,12 +291,13 @@ static int sched_rtds_vcpu_output(int domid, libxl_vcpu_sched_params *scinfo)
 
     domname = libxl_domid_to_name(ctx, domid);
     for ( i = 0; i < scinfo->num_vcpus; i++ ) {
-        printf("%-33s %4d %4d %9"PRIu32" %9"PRIu32"\n",
+        printf("%-33s %4d %4d %9"PRIu32" %9"PRIu32" %15d\n",
                domname,
                domid,
                scinfo->vcpus[i].vcpuid,
                scinfo->vcpus[i].period,
-               scinfo->vcpus[i].budget);
+               scinfo->vcpus[i].budget,
+               scinfo->vcpus[i].is_work_conserving );
     }
     free(domname);
     return 0;
@@ -309,8 +311,8 @@ static int sched_rtds_vcpu_output_all(int domid,
     int i;
 
     if (domid < 0) {
-        printf("%-33s %4s %4s %9s %9s\n", "Name", "ID",
-               "VCPU", "Period", "Budget");
+        printf("%-33s %4s %4s %9s %9s %15s\n", "Name", "ID",
+               "VCPU", "Period", "Budget", "Work conserving");
         return 0;
     }
 
@@ -321,12 +323,13 @@ static int sched_rtds_vcpu_output_all(int domid,
 
     domname = libxl_domid_to_name(ctx, domid);
     for ( i = 0; i < scinfo->num_vcpus; i++ ) {
-        printf("%-33s %4d %4d %9"PRIu32" %9"PRIu32"\n",
+        printf("%-33s %4d %4d %9"PRIu32" %9"PRIu32" %15d\n",
                domname,
                domid,
                scinfo->vcpus[i].vcpuid,
                scinfo->vcpus[i].period,
-               scinfo->vcpus[i].budget);
+               scinfo->vcpus[i].budget,
+               scinfo->vcpus[i].is_work_conserving);
     }
     free(domname);
     return 0;
@@ -702,14 +705,18 @@ int main_sched_rtds(int argc, char **argv)
     int *vcpus = (int *)xmalloc(sizeof(int)); /* IDs of VCPUs that change */
     int *periods = (int *)xmalloc(sizeof(int)); /* period is in microsecond */
     int *budgets = (int *)xmalloc(sizeof(int)); /* budget is in microsecond */
+    int *workconservings = (int *)xmalloc(sizeof(int)); /* budget is in microsecond */
     int v_size = 1; /* size of vcpus array */
     int p_size = 1; /* size of periods array */
     int b_size = 1; /* size of budgets array */
+    int w_size = 1; /* size of work conserving array */
     int v_index = 0; /* index in vcpus array */
     int p_index =0; /* index in periods array */
     int b_index =0; /* index for in budgets array */
+    int w_index =0; /* index for in work conserving array */
     bool opt_p = false;
     bool opt_b = false;
+    bool opt_w = false;
     bool opt_v = false;
     bool opt_all = false; /* output per-dom parameters */
     int opt, i, rc, r;
@@ -717,12 +724,13 @@ int main_sched_rtds(int argc, char **argv)
         {"domain", 1, 0, 'd'},
         {"period", 1, 0, 'p'},
         {"budget", 1, 0, 'b'},
+        {"workconserving", 1, 0, 'b'},
         {"vcpuid",1, 0, 'v'},
         {"cpupool", 1, 0, 'c'},
         COMMON_LONG_OPTS
     };
 
-    SWITCH_FOREACH_OPT(opt, "d:p:b:v:c", opts, "sched-rtds", 0) {
+    SWITCH_FOREACH_OPT(opt, "d:p:b:w:v:c", opts, "sched-rtds", 0) {
     case 'd':
         dom = optarg;
         break;
@@ -746,6 +754,14 @@ int main_sched_rtds(int argc, char **argv)
         budgets[b_index++] = strtol(optarg, NULL, 10);
         opt_b = 1;
         break;
+    case 'w':
+        if (w_index >= w_size) { /* work conserving array is full */
+            w_size *= 2;
+            workconservings = xrealloc(workconservings, w_size);
+        }
+        workconservings[w_index++] = strtol(optarg, NULL, 10);
+        opt_w = 1;
+        break;
     case 'v':
         if (!strcmp(optarg, "all")) { /* get or set all vcpus of a domain */
             opt_all = 1;
@@ -763,18 +779,18 @@ int main_sched_rtds(int argc, char **argv)
         break;
     }
 
-    if (cpupool && (dom || opt_p || opt_b || opt_v || opt_all)) {
+    if (cpupool && (dom || opt_p || opt_b || opt_w || opt_v || opt_all)) {
         fprintf(stderr, "Specifying a cpupool is not allowed with "
                 "other options.\n");
         r = EXIT_FAILURE;
         goto out;
     }
-    if (!dom && (opt_p || opt_b || opt_v)) {
+    if (!dom && (opt_p || opt_b || opt_w || opt_v)) {
         fprintf(stderr, "Missing parameters.\n");
         r = EXIT_FAILURE;
         goto out;
     }
-    if (dom && !opt_v && !opt_all && (opt_p || opt_b)) {
+    if (dom && !opt_v && !opt_all && (opt_p || opt_b || opt_w)) {
         fprintf(stderr, "Must specify VCPU.\n");
         r = EXIT_FAILURE;
         goto out;
@@ -785,8 +801,9 @@ int main_sched_rtds(int argc, char **argv)
         goto out;
     }
     if (((v_index > b_index) && opt_b) || ((v_index > p_index) && opt_p)
-        || p_index != b_index) {
-        fprintf(stderr, "Incorrect number of period and budget\n");
+        || ((v_index > w_index) && opt_w) || p_index != b_index
+        || p_index != w_index || b_index != w_index ) {
+        fprintf(stderr, "Incorrect number of period, budget and workconserving\n");
         r = EXIT_FAILURE;
         goto out;
     }
@@ -820,7 +837,7 @@ int main_sched_rtds(int argc, char **argv)
                 r = EXIT_FAILURE;
                 goto out;
             }
-        } else if (!opt_p && !opt_b) {
+        } else if (!opt_p && !opt_b && !opt_w) {
             /* get per-vcpu rtds scheduling parameters */
             libxl_vcpu_sched_params scinfo;
             libxl_vcpu_sched_params_init(&scinfo);
@@ -852,6 +869,7 @@ int main_sched_rtds(int argc, char **argv)
                     scinfo.vcpus[i].vcpuid = vcpus[i];
                     scinfo.vcpus[i].period = periods[i];
                     scinfo.vcpus[i].budget = budgets[i];
+                    scinfo.vcpus[i].is_work_conserving = workconservings[i];
                 }
                 rc = sched_vcpu_set(domid, &scinfo);
             } else { /* set params for all vcpus */
@@ -860,6 +878,7 @@ int main_sched_rtds(int argc, char **argv)
                                xmalloc(sizeof(libxl_sched_params));
                 scinfo.vcpus[0].period = periods[0];
                 scinfo.vcpus[0].budget = budgets[0];
+                scinfo.vcpus[0].is_work_conserving = workconservings[0];
                 rc = sched_vcpu_set_all(domid, &scinfo);
             }
 
@@ -876,6 +895,7 @@ out:
     free(vcpus);
     free(periods);
     free(budgets);
+    free(workconservings);
     return r;
 }
 

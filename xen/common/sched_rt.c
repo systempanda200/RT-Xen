@@ -1442,6 +1442,7 @@ rt_dom_cntl(
                 svc = rt_vcpu(d->vcpu[local_sched.vcpuid]);
                 local_sched.u.rtds.budget = svc->budget / MICROSECS(1);
                 local_sched.u.rtds.period = svc->period / MICROSECS(1);
+                local_sched.u.rtds.is_work_conserving = svc->is_work_conserving;
                 spin_unlock_irqrestore(&prv->lock, flags);
 
                 if ( copy_to_guest_offset(op->u.v.vcpus, index,
@@ -1466,6 +1467,7 @@ rt_dom_cntl(
                 svc = rt_vcpu(d->vcpu[local_sched.vcpuid]);
                 svc->period = period;
                 svc->budget = budget;
+                svc->is_work_conserving = local_sched.u.rtds.is_work_conserving;
                 spin_unlock_irqrestore(&prv->lock, flags);
             }
             /* Process a most 64 vCPUs without checking for preemptions. */

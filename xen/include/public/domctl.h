@@ -360,6 +360,7 @@ typedef struct xen_domctl_sched_credit2 {
 typedef struct xen_domctl_sched_rtds {
     uint32_t period;
     uint32_t budget;
+    bool     is_work_conserving;
 } xen_domctl_sched_rtds_t;
 
 typedef struct xen_domctl_schedparam_vcpu {

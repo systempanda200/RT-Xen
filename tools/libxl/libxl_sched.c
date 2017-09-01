@@ -558,6 +558,10 @@ static int sched_rtds_vcpu_get_all(libxl__gc *gc, uint32_t domid,
     for (i = 0; i < num_vcpus; i++) {
         scinfo->vcpus[i].period = vcpus[i].u.rtds.period;
         scinfo->vcpus[i].budget = vcpus[i].u.rtds.budget;
+        if (vcpus[i].u.rtds.flags & XEN_DOMCTL_SCHEDRT_extra)
+           scinfo->vcpus[i].extratime = 1;
+        else
+           scinfo->vcpus[i].extratime = 0;
         scinfo->vcpus[i].vcpuid = vcpus[i].vcpuid;
     }
     rc = 0;
@@ -607,6 +611,10 @@ static int sched_rtds_vcpu_set(libxl__gc *gc, uint32_t domid,
         vcpus[i].vcpuid = scinfo->vcpus[i].vcpuid;
         vcpus[i].u.rtds.period = scinfo->vcpus[i].period;
         vcpus[i].u.rtds.budget = scinfo->vcpus[i].budget;
+        if (scinfo->vcpus[i].extratime)
+            vcpus[i].u.rtds.flags |= XEN_DOMCTL_SCHEDRT_extra;
+        else
+            vcpus[i].u.rtds.flags &= ~XEN_DOMCTL_SCHEDRT_extra;
     }
 
     r = xc_sched_rtds_vcpu_set(CTX->xch, domid,
@@ -655,6 +663,10 @@ static int sched_rtds_vcpu_set_all(libxl__gc *gc, uint32_t domid,
         vcpus[i].vcpuid = i;
         vcpus[i].u.rtds.period = scinfo->vcpus[0].period;
         vcpus[i].u.rtds.budget = scinfo->vcpus[0].budget;
+        if (scinfo->vcpus[0].extratime)
+            vcpus[i].u.rtds.flags |= XEN_DOMCTL_SCHEDRT_extra;
+        else
+            vcpus[i].u.rtds.flags &= ~XEN_DOMCTL_SCHEDRT_extra;
     }
 
     r = xc_sched_rtds_vcpu_set(CTX->xch, domid,
@@ -705,6 +717,12 @@ static int sched_rtds_domain_set(libxl__gc *gc, uint32_t domid,
         sdom.period = scinfo->period;
     if (scinfo->budget != LIBXL_DOMAIN_SCHED_PARAM_BUDGET_DEFAULT)
         sdom.budget = scinfo->budget;
+    if (scinfo->extratime != LIBXL_DOMAIN_SCHED_PARAM_EXTRATIME_DEFAULT) {
+        if (scinfo->extratime)
+            sdom.flags |= XEN_DOMCTL_SCHEDRT_extra;
+        else
+            sdom.flags &= ~XEN_DOMCTL_SCHEDRT_extra;
+    }
     if (sched_rtds_validate_params(gc, sdom.period, sdom.budget))
         return ERROR_INVAL;
 

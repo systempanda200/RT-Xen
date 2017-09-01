@@ -74,8 +74,8 @@
 
 0x00022801  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:tickle        [ cpu = %(1)d ]
 0x00022802  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:runq_pick     [ dom:vcpu = 0x%(1)08x, cur_deadline = 0x%(3)08x%(2)08x, cur_budget = 0x%(5)08x%(4)08x ]
-0x00022803  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:burn_budget   [ dom:vcpu = 0x%(1)08x, cur_budget = 0x%(3)08x%(2)08x, delta = %(4)d ]
-0x00022804  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:repl_budget   [ dom:vcpu = 0x%(1)08x, cur_deadline = 0x%(3)08x%(2)08x, cur_budget = 0x%(5)08x%(4)08x ]
+0x00022803  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:burn_budget   [ dom:vcpu = 0x%(1)08x, cur_budget = 0x%(3)08x%(2)08x, delta = %(4)d, priority_level = %(5)d, has_extratime = %(6)x ]
+0x00022804  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:repl_budget   [ dom:vcpu = 0x%(1)08x, priority_level = 0x%(2)08d cur_deadline = 0x%(4)08x%(3)08x, cur_budget = 0x%(6)08x%(5)08x ]
 0x00022805  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:sched_tasklet
 0x00022806  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  rtds:schedule      [ cpu[16]:tasklet[8]:idle[4]:tickled[4] = %(1)08x ]
 

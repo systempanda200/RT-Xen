@@ -7935,23 +7935,29 @@ void sched_process(struct pcpu_info *p)
                     unsigned int vcpuid:16, domid:16;
                     uint64_t cur_bg;
                     int delta;
+                    unsigned priority_level;
+                    unsigned has_extratime;
                 } __attribute__((packed)) *r = (typeof(r))ri->d;
 
                 printf(" %s rtds:burn_budget d%uv%u, budget = %"PRIu64", "
-                       "delta = %d\n", ri->dump_header, r->domid,
-                       r->vcpuid, r->cur_bg, r->delta);
+                       "delta = %d, priority_level = %d, has_extratime = %d\n",
+                       ri->dump_header, r->domid,
+                       r->vcpuid, r->cur_bg, r->delta,
+                       r->priority_level, !!r->has_extratime);
             }
             break;
         case TRC_SCHED_CLASS_EVT(RTDS, 4): /* BUDGET_REPLENISH */
             if(opt.dump_all) {
                 struct {
                     unsigned int vcpuid:16, domid:16;
+                    unsigned int priority_level;
                     uint64_t cur_dl, cur_bg;
                 } __attribute__((packed)) *r = (typeof(r))ri->d;
 
-                printf(" %s rtds:repl_budget d%uv%u, deadline = %"PRIu64", "
-                       "budget = %"PRIu64"\n", ri->dump_header,
-                       r->domid, r->vcpuid, r->cur_dl, r->cur_bg);
+                printf(" %s rtds:repl_budget d%uv%u, priority_level = %u,"
+                       "deadline = %"PRIu64", budget = %"PRIu64"\n",
+                       ri->dump_header, r->domid, r->vcpuid,
+                       r->priority_level, r->cur_dl, r->cur_bg);
             }
             break;
         case TRC_SCHED_CLASS_EVT(RTDS, 5): /* SCHED_TASKLET    */

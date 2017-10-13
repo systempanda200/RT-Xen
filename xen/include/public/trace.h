@@ -58,6 +58,14 @@
 #define TRC_SCHED_CLASS     0x00022000   /* Scheduler-specific    */
 #define TRC_SCHED_VERBOSE   0x00028000   /* More inclusive scheduling */
 
+#define TRC_SCHED_OVERHEAD  0x00024000   /* Trace to record scheduling overhead */
+#define TRC_SCHED_OVERHEAD_SCHED_LATENCY    (TRC_SCHED_OVERHEAD + 1)
+#define TRC_SCHED_OVERHEAD_CONTEXT_SWITCH   (TRC_SCHED_OVERHEAD + 2)
+#define TRC_SCHED_OVERHEAD_CONTEXT_SAVED    (TRC_SCHED_OVERHEAD + 3)
+#define TRC_SCHED_OVERHEAD_WAKE             (TRC_SCHED_OVERHEAD + 4)
+#define TRC_SCHED_OVERHEAD_SLEEP            (TRC_SCHED_OVERHEAD + 5)
+#define TRC_SCHED_OVERHEAD_SELF_SWITCH      (TRC_SCHED_OVERHEAD + 6) /* Never used */
+
 /*
  * The highest 3 bits of the last 12 bits of TRC_SCHED_CLASS above are
  * reserved for encoding what scheduler produced the information. The

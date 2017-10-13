@@ -63,6 +63,7 @@
 #include <xen/iommu.h>
 #include <compat/vcpu.h>
 #include <asm/psr.h>
+#include <xen/trace.h>
 
 DEFINE_PER_CPU(struct vcpu *, curr_vcpu);
 
@@ -2081,6 +2082,10 @@ void context_switch(struct vcpu *prev, struct vcpu *next)
     unsigned int cpu = smp_processor_id();
     const struct domain *prevd = prev->domain, *nextd = next->domain;
     cpumask_t dirty_mask;
+    s_time_t t1, t2;
+    int flush_tlb = 0;
+
+    t1 = NOW();
 
     ASSERT(local_irq_is_enabled());
 
@@ -2092,6 +2097,7 @@ void context_switch(struct vcpu *prev, struct vcpu *next)
     {
         /* Other cpus call __sync_local_execstate from flush ipi handler. */
         flush_tlb_mask(&dirty_mask);
+        flush_tlb = 1;
     }
 
     if ( prev != next )
@@ -2138,7 +2144,19 @@ void context_switch(struct vcpu *prev, struct vcpu *next)
         ctxt_switch_levelling(next);
     }
 
+    t2 = NOW();
+    TRACE_6D(TRC_SCHED_OVERHEAD_CONTEXT_SWITCH,
+             prev->domain->domain_id,
+             prev->vcpu_id,
+             next->domain->domain_id,
+             next->vcpu_id,
+             flush_tlb,
+             t2-t1);
+
+    t1 = NOW();
     context_saved(prev);
+    t2 = NOW();
+    TRACE_3D(TRC_SCHED_OVERHEAD_CONTEXT_SAVED, prev->domain->domain_id, prev->vcpu_id, t2-t1);
 
     if ( prev != next )
     {

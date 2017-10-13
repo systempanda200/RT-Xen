@@ -1,5 +1,11 @@
 0x00000000  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  unknown (0x%(event)016x)  [ 0x%(1)08x 0x%(2)08x 0x%(3)08x 0x%(4)08x 0x%(5)08x 0x%(6)08x 0x%(7)08x ]
 
+0x00024001  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  lat_sched         [ lat = 0x%(6)08x ]
+0x00024002  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  lat_cxs           [ lat = 0x%(6)08x ]
+0x00024003  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  lat_cxs_saved     [ lat = 0x%(3)08x ]
+0x00024004  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  lat_wake          [ lat = 0x%(3)08x ]
+0x00024005  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  lat_sleep         [ lat = 0x%(3)08x ]
+
 0x0001f001  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  lost_records      0x%(1)08x
 0x0001f002  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  wrap_buffer       0x%(1)08x
 0x0001f003  CPU%(cpu)d  %(tsc)d (+%(reltsc)8d)  cpu_change        0x%(1)08x

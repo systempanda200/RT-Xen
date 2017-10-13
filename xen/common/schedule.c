@@ -440,6 +440,9 @@ void vcpu_sleep_nosync(struct vcpu *v)
 {
     unsigned long flags;
     spinlock_t *lock;
+    s_time_t t1, t2;
+
+    t1 = NOW();
 
     TRACE_2D(TRC_SCHED_SLEEP, v->domain->domain_id, v->vcpu_id);
 
@@ -454,6 +457,9 @@ void vcpu_sleep_nosync(struct vcpu *v)
     }
 
     vcpu_schedule_unlock_irqrestore(lock, flags, v);
+
+    t2 = NOW();
+    TRACE_3D(TRC_SCHED_OVERHEAD_SLEEP, v->domain->domain_id, v->vcpu_id, t2-t1);
 }
 
 void vcpu_sleep_sync(struct vcpu *v)
@@ -470,6 +476,9 @@ void vcpu_wake(struct vcpu *v)
 {
     unsigned long flags;
     spinlock_t *lock;
+    s_time_t t1, t2;
+
+    t1 = NOW();
 
     TRACE_2D(TRC_SCHED_WAKE, v->domain->domain_id, v->vcpu_id);
 
@@ -488,6 +497,9 @@ void vcpu_wake(struct vcpu *v)
     }
 
     vcpu_schedule_unlock_irqrestore(lock, flags, v);
+
+    t2 = NOW();
+    TRACE_3D(TRC_SCHED_OVERHEAD_WAKE, v->domain->domain_id, v->vcpu_id, t2-t1);
 }
 
 void vcpu_unblock(struct vcpu *v)
@@ -1390,6 +1402,7 @@ static void schedule(void)
     spinlock_t           *lock;
     struct task_slice     next_slice;
     int cpu = smp_processor_id();
+    s_time_t t2;       /* trace scheduling latency */ 
 
     ASSERT_NOT_IN_ATOMIC();
 
@@ -1440,6 +1453,16 @@ static void schedule(void)
                  now - prev->runstate.state_entry_time,
                  next_slice.time);
         trace_continue_running(next);
+
+        t2 = NOW();
+        TRACE_6D(TRC_SCHED_OVERHEAD_SCHED_LATENCY,
+             prev->domain->domain_id,
+             prev->vcpu_id,
+             next->domain->domain_id,
+             next->vcpu_id,
+             next_slice.migrated,
+             t2-now);
+
         return continue_running(prev);
     }
 
@@ -1467,6 +1490,15 @@ static void schedule(void)
 
     ASSERT(next->runstate.state != RUNSTATE_running);
     vcpu_runstate_change(next, RUNSTATE_running, now);
+
+    t2 = NOW();
+    TRACE_6D(TRC_SCHED_OVERHEAD_SCHED_LATENCY,
+             prev->domain->domain_id,
+             prev->vcpu_id,
+             next->domain->domain_id,
+             next->vcpu_id,
+             next_slice.migrated,
+             t2-now);
 
     /*
      * NB. Don't add any trace records from here until the actual context
